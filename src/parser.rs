@@ -1,42 +1,6 @@
-#[derive(Copy, Clone, PartialEq, Debug)]
-enum TokenType {
-  NUMERIC,
-  IDENTIFIER,
-  ADD,
-  SUB,
-  MULT,
-  DIV,
-  IF,
-  WHILE,
-  FOR,
-  ELSE,
-  INVALID,
-  START,
-}
-
-#[derive(Clone, Debug)]
-pub struct Token {
-  token_type: TokenType,
-  value: String,
-}
-
-#[derive(Clone, Debug)]
-struct ASTree {
-  children: Vec<ASTree>,
-  token: Token,
-}
-
-impl ASTree {
-  fn new() -> ASTree {
-    ASTree {
-      children: Vec::new(),
-      token: Token {
-        token_type: TokenType::START,
-        value: String::new(),
-      },
-    }
-  }
-}
+use crate::ast::ASTree;
+use crate::ast::Token;
+use crate::ast::TokenType;
 
 fn match_keyword(ident: &str) -> TokenType {
   match ident {
@@ -48,13 +12,14 @@ fn match_keyword(ident: &str) -> TokenType {
   }
 }
 
-fn match_operator(character: char) -> TokenType {
+fn match_operator(character: char) -> bool {
   match character {
-    '+' => TokenType::ADD,
-    '-' => TokenType::SUB,
-    '*' => TokenType::MULT,
-    '/' => TokenType::DIV,
-    _ => TokenType::INVALID,
+    '+' => true,
+    '-' => true,
+    '*' => true,
+    '/' => true,
+    '=' => true,
+    _ => false,
   }
 }
 
@@ -64,24 +29,17 @@ pub fn tokenize(input: String) -> Result<Vec<Token>, String> {
   let mut value: String = String::new();
 
   for (i, character) in input.chars().enumerate() {
-    let operator_type = match_operator(character);
-    if character == ' ' || character == '\n' || operator_type != TokenType::INVALID {
+    if character == ' ' || character == '\n' || match_operator(character) {
       if value.len() != 0 {
         if state == TokenType::IDENTIFIER {
           state = match_keyword(value.as_str());
         }
-        output.push(Token {
-          token_type: state.clone(),
-          value: value.clone(),
-        });
+        output.push(Token::new(state.clone(), value.clone()));
         state = TokenType::INVALID;
         value = String::new();
       }
-      if operator_type != TokenType::INVALID {
-        output.push(Token {
-          token_type: operator_type,
-          value: character.to_string(),
-        });
+      if match_operator(character) {
+        output.push(Token::new(TokenType::BINARYOP, character.to_string()));
       }
       continue;
     }
@@ -89,9 +47,9 @@ pub fn tokenize(input: String) -> Result<Vec<Token>, String> {
     match state {
       TokenType::NUMERIC => {
         if !character.is_ascii_digit() {
-          return Result::Err(
-            "Identifier cannot start with a number, invalid input at index: {i}".to_string(),
-          );
+          return Result::Err(String::from(
+            "Identifier cannot start with a number, invalid input at index: {i}",
+          ));
         }
         value.push(character);
       }
@@ -108,14 +66,24 @@ pub fn tokenize(input: String) -> Result<Vec<Token>, String> {
           value.push(character);
         }
       }
-      _ => {}
+      _ => {
+        return Result::Err(String::from(
+          "Unexpected state reached during tokenization.",
+        ));
+      }
     }
   }
   Result::Ok(output)
 }
 
 pub fn build_astree(tokens: Vec<Token>) -> ASTree {
-  let output: ASTree = ASTree::new();
-  for token in tokens {}
+  let output: ASTree = ASTree::new(Token::new(TokenType::START, "START".to_string()));
+  let state: TokenType = TokenType::INVALID;
+  for token in tokens {
+    match state {
+      TokenType::IDENTIFIER => {}
+      _ => {}
+    }
+  }
   output
 }
