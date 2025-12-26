@@ -18,31 +18,12 @@ impl ASTree {
     }
   }
 
-  pub fn get_token(&self) -> Token {
-    self.token.clone()
-  }
-
   pub fn append(&mut self, child: ASTree) {
     self.children.push(child);
   }
 
   pub fn eval(&mut self) -> Result<TypeValue, String> {
     match self.token.get_type() {
-      TokenType::START => {
-        let mut exit_code = 0;
-        for child in &mut self.children {
-          match child.eval() {
-            Ok(_) => continue,
-            Err(error) => {
-              print!("Error during execution: {error}");
-              exit_code = -1;
-              break;
-            }
-          };
-        }
-        return Ok(TypeValue::INTEGER(exit_code));
-      }
-
       TokenType::NUMERIC => match self.token.get_value().parse::<i32>() {
         Ok(result) => return Ok(TypeValue::INTEGER(result)),
         Err(error) => return Err(error.to_string()),

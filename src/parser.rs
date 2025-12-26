@@ -6,62 +6,78 @@ use crate::token::TokenType;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-pub fn parse(mut token_stack: Vec<Token>) -> ASTree {
-  let mut identifiers: HashMap<String, Token> = HashMap::new();
-  let mut nodes: Vec<ASTree> = Vec::new();
+pub struct Parser {
+  trees: Vec<ASTree>,
+}
 
-  while !token_stack.is_empty() {
-    let token: Token = token_stack
-      .pop()
-      .expect("Failed to pop token from token stack during parsing");
-    match token.get_type() {
-      TokenType::IDENTIFIER => {
-        identifiers.insert(
-          token.get_value(),
-          Token::new(TokenType::NULL, String::from("")),
-        );
-        nodes.push(ASTree::new(token));
-      }
-      TokenType::NUMERIC => {
-        nodes.push(ASTree::new(token));
-      }
-      TokenType::BINARYOP => {
-        let mut node: ASTree = ASTree::new(token);
-        let right: ASTree = nodes
-          .pop()
-          .expect("Failed to pop right node from nodes stack during parsing for binary operation");
-        let left: ASTree =
-          ASTree::new(token_stack.pop().expect(
-            "Failed to pop left token from token stack during parsing for binary operation",
-          ));
-        node.append(left);
-        node.append(right);
-        nodes.push(node);
-      }
-      TokenType::PRINT => {
-        let mut node: ASTree = ASTree::new(token);
-        node.append(nodes.pop().expect("No argument provided to print keyword"));
-        nodes.push(node);
-      }
-      _ => {
-        panic!(
-          "Parser encountered unsupported token type during parsing: {:?}",
-          token.get_type()
-        );
-      }
+impl Parser {
+  pub fn new() -> Parser {
+    Parser { trees: Vec::new() }
+  }
+
+  fn initialize_identifiers(&mut self, identifiers: HashMap<String, Token>) {
+    match identifiers::IDENTIFIERS.set(Mutex::new(identifiers)) {
+      Ok(_) => {}
+      Err(err) => panic!(
+        "Failed to set IDENTIFIERS static HashMap after parsing, IDENTIFIERS was erroneously already set to {err:?}"
+      ),
     }
   }
 
-  match identifiers::IDENTIFIERS.set(Mutex::new(identifiers)) {
-    Ok(_) => {}
-    Err(err) => panic!(
-      "Failed to set IDENTIFIERS static HashMap after parsing, IDENTIFIERS was erroneously already set to {err:?}"
-    ),
+  pub fn get_trees(&mut self) -> &mut Vec<ASTree> {
+    &mut self.trees
   }
 
-  let mut output: ASTree = ASTree::new(Token::new(TokenType::START, String::from("")));
-  for node in nodes {
-    output.append(node);
+  pub fn parse(&mut self, mut token_stack: Vec<Token>) -> Result<String, String> {
+    let identifiers: HashMap<String, Token> = HashMap::new();
+
+    while !token_stack.is_empty() {
+      let mut token: Token = token_stack
+        .pop()
+        .expect("Failed to pop token from token stack during parsing");
+      match token.get_type() {
+        // TokenType::IDENTIFIER => {
+        //   identifiers.insert(
+        //     token.get_value(),
+        //     Token::new(TokenType::NULL, String::from("")),
+        //   );
+        //   self.trees.push(ASTree::new(token));
+        // }
+        TokenType::NUMERIC => {
+          self.trees.push(ASTree::new(token));
+        }
+        TokenType::BINARYOP => {
+          let mut node: ASTree = ASTree::new(token);
+          let right: ASTree = self.trees.pop().expect(
+            "Failed to pop right node from self.trees stack during parsing for binary operation",
+          );
+          let left: ASTree = ASTree::new(token_stack.pop().expect(
+            "Failed to pop left token from token stack during parsing for binary operation",
+          ));
+          node.append(left);
+          node.append(right);
+          self.trees.push(node);
+        }
+        TokenType::PRINT => {
+          let mut node: ASTree = ASTree::new(token);
+          node.append(
+            self
+              .trees
+              .pop()
+              .expect("No argument provided to print keyword"),
+          );
+          self.trees.push(node);
+        }
+        _ => {
+          panic!(
+            "Parser encountered unsupported token type during parsing: {:?}",
+            token.get_type()
+          );
+        }
+      }
+    }
+
+    self.initialize_identifiers(identifiers);
+    Ok(String::from("Parsing successful, "))
   }
-  output
 }

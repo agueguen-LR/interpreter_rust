@@ -28,18 +28,18 @@ pub fn tokenize(input: String) -> Result<Vec<Token>, String> {
   let mut state: TokenType = TokenType::INVALID;
   let mut value: String = String::new();
 
-  for (_i, character) in input.chars().enumerate() {
+  for (i, character) in input.chars().enumerate() {
     if character == ' ' || character == '\n' || match_operator(character) {
       if value.len() != 0 {
         if state == TokenType::IDENTIFIER {
           state = match_keyword(value.as_str());
         }
-        output.push(Token::new(state.clone(), value.clone()));
+        output.push(Token::new(state.clone(), value.clone(), i));
         state = TokenType::INVALID;
         value = String::new();
       }
       if match_operator(character) {
-        output.push(Token::new(TokenType::BINARYOP, character.to_string()));
+        output.push(Token::new(TokenType::BINARYOP, character.to_string(), i));
       }
       continue;
     }

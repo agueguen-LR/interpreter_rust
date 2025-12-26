@@ -4,6 +4,7 @@ mod lexer;
 mod parser;
 mod token;
 
+use crate::parser::Parser;
 use std::env;
 use std::fs;
 
@@ -17,17 +18,26 @@ fn main() {
 
   let file_content: String =
     fs::read_to_string(argv[1].clone()).expect("Failed to read file: {argv[1]}");
-
   print!("{file_content}");
+
   let tokens = match lexer::tokenize(file_content) {
-    Err(error) => panic!("Lexer Error: {error}"),
+    Err(error) => panic!("Error during lexing: {error}"),
     Ok(toks) => toks,
   };
   dbg!(&tokens);
-  let mut tree = parser::parse(tokens);
-  dbg!(&tree);
-  match tree.eval() {
-    Ok(return_code) => dbg!(return_code),
-    Err(error) => panic!("{error}"),
-  };
+
+  let mut parser = Parser::new();
+  match parser.parse(tokens) {
+    Err(error) => panic!("Error during parsing: {error}"),
+    _ => {}
+  }
+
+  let astrees = parser.get_trees();
+  dbg!(&astrees);
+  for tree in astrees {
+    match tree.eval() {
+      Ok(return_code) => dbg!(return_code),
+      Err(error) => panic!("Error during runtime: {error}"),
+    };
+  }
 }
