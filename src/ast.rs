@@ -5,12 +5,14 @@ pub enum TokenType {
   NUMERIC,
   IDENTIFIER,
   BINARYOP,
+  NULL,
   IF,
   WHILE,
   FOR,
   ELSE,
   INVALID,
   START,
+  PRINT,
 }
 
 #[derive(Clone, Debug)]
@@ -33,8 +35,30 @@ impl Token {
     }
   }
 
+  pub fn get_value(&self) -> String {
+    self.value.clone()
+  }
+
+  pub fn get_type(&self) -> TokenType {
+    self.token_type
+  }
+
   pub fn eval(&mut self, tree_pos: ASTree) -> Result<i32, String> {
     match self.token_type {
+      TokenType::START => {
+        let mut exit_code = 0;
+        for child in tree_pos.children {
+          match child.get_token().eval(child) {
+            Ok(_) => continue,
+            Err(error) => {
+              print!("Error during execution: {error}");
+              exit_code = -1;
+              break;
+            }
+          };
+        }
+        return Ok(exit_code);
+      }
       TokenType::NUMERIC => match self.value.parse::<i32>() {
         Ok(result) => return Ok(result),
         Err(error) => return Err(error.to_string()),
@@ -68,6 +92,19 @@ impl Token {
 
       TokenType::IDENTIFIER => return Err(String::from("Not yet implemented")),
 
+      TokenType::PRINT => {
+        if tree_pos.children.len() != 1 {
+          return Err(String::from("Invalid amount of params passed to print"));
+        }
+        let print_value = tree_pos.children[0]
+          .clone()
+          .token
+          .eval(tree_pos.children[0].clone())
+          .expect("Invalid argument given to print");
+        print!("{print_value}");
+        return Ok(0);
+      }
+
       _ => return Err(String::from("Unexpected TokenType evaluated")),
     }
   }
@@ -79,6 +116,10 @@ impl ASTree {
       children: Vec::new(),
       token: token,
     }
+  }
+
+  pub fn get_token(&self) -> Token {
+    self.token.clone()
   }
 
   pub fn append(&mut self, child: ASTree) {

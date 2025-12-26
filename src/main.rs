@@ -1,12 +1,10 @@
 mod ast;
+mod identifiers;
+mod lexer;
 mod parser;
 
 use std::env;
 use std::fs;
-
-use crate::ast::ASTree;
-use crate::ast::Token;
-use crate::ast::TokenType;
 
 fn main() {
   let argv: Vec<String> = env::args().collect();
@@ -20,18 +18,12 @@ fn main() {
     fs::read_to_string(argv[1].clone()).expect("Failed to read file: {argv[1]}");
 
   print!("{file_content}");
-  let tokens = parser::tokenize(file_content);
-  dbg!(tokens);
-
-  let mut tree: ASTree = ASTree::new(Token::new(TokenType::BINARYOP, String::from("/")));
-  tree.append(ASTree::new(Token::new(
-    TokenType::NUMERIC,
-    String::from("-45"),
-  )));
-  tree.append(ASTree::new(Token::new(
-    TokenType::NUMERIC,
-    String::from("15"),
-  )));
-
+  let tokens = match lexer::tokenize(file_content) {
+    Err(error) => panic!("Lexer Error: {error}"),
+    Ok(toks) => toks,
+  };
+  dbg!(&tokens);
+  let mut tree = parser::parse(tokens);
+  dbg!(&tree);
   tree.eval();
 }
