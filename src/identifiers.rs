@@ -1,4 +1,4 @@
-use crate::ast::Token;
+use crate::token::Token;
 
 use std::collections::HashMap;
 use std::sync::Mutex;

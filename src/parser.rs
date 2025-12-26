@@ -1,7 +1,7 @@
 use crate::ast::ASTree;
-use crate::ast::Token;
-use crate::ast::TokenType;
 use crate::identifiers;
+use crate::token::Token;
+use crate::token::TokenType;
 
 use std::collections::HashMap;
 use std::sync::Mutex;

@@ -1,5 +1,5 @@
-use crate::ast::Token;
-use crate::ast::TokenType;
+use crate::token::Token;
+use crate::token::TokenType;
 
 fn match_keyword(ident: &str) -> TokenType {
   match ident {

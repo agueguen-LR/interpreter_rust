@@ -1,113 +1,13 @@
-/* struct declaration and methods for an abstract syntax tree (AST) */
+/* Abstract syntax tree (AST) */
 
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub enum TokenType {
-  NUMERIC,
-  IDENTIFIER,
-  BINARYOP,
-  NULL,
-  IF,
-  WHILE,
-  FOR,
-  ELSE,
-  INVALID,
-  START,
-  PRINT,
-}
-
-#[derive(Clone, Debug)]
-pub struct Token {
-  token_type: TokenType,
-  value: String,
-}
+use crate::token::Token;
+use crate::token::TokenType;
+use crate::token::TypeValue;
 
 #[derive(Clone, Debug)]
 pub struct ASTree {
   children: Vec<ASTree>,
   token: Token,
-}
-
-impl Token {
-  pub fn new(token_type: TokenType, value: String) -> Token {
-    Token {
-      token_type: token_type,
-      value: value,
-    }
-  }
-
-  pub fn get_value(&self) -> String {
-    self.value.clone()
-  }
-
-  pub fn get_type(&self) -> TokenType {
-    self.token_type
-  }
-
-  pub fn eval(&mut self, tree_pos: ASTree) -> Result<i32, String> {
-    match self.token_type {
-      TokenType::START => {
-        let mut exit_code = 0;
-        for child in tree_pos.children {
-          match child.get_token().eval(child) {
-            Ok(_) => continue,
-            Err(error) => {
-              print!("Error during execution: {error}");
-              exit_code = -1;
-              break;
-            }
-          };
-        }
-        return Ok(exit_code);
-      }
-      TokenType::NUMERIC => match self.value.parse::<i32>() {
-        Ok(result) => return Ok(result),
-        Err(error) => return Err(error.to_string()),
-      },
-
-      TokenType::BINARYOP => {
-        if tree_pos.children.len() != 2 {
-          return Err(String::from(
-            "Invalid amount of params passed to Binary Operation Evaluation",
-          ));
-        }
-        let param1: i32 = tree_pos.children[0]
-          .clone()
-          .token
-          .eval(tree_pos.children[0].clone())
-          .expect("Child 1 didn't evaluate to i32 in BinOP evaluation");
-        let param2: i32 = tree_pos.children[1]
-          .clone()
-          .token
-          .eval(tree_pos.children[1].clone())
-          .expect("Child 2 didn't evaluate to i32 in BinOP evaluation");
-
-        match self.value.as_str() {
-          "+" => return Ok(param1 + param2),
-          "-" => return Ok(param1 - param2),
-          "*" => return Ok(param1 * param2),
-          "/" => return Ok(param1 / param2),
-          _ => return Err(String::from("Unexpected operator in BinOP evaluation")),
-        }
-      }
-
-      TokenType::IDENTIFIER => return Err(String::from("Not yet implemented")),
-
-      TokenType::PRINT => {
-        if tree_pos.children.len() != 1 {
-          return Err(String::from("Invalid amount of params passed to print"));
-        }
-        let print_value = tree_pos.children[0]
-          .clone()
-          .token
-          .eval(tree_pos.children[0].clone())
-          .expect("Invalid argument given to print");
-        print!("{print_value}");
-        return Ok(0);
-      }
-
-      _ => return Err(String::from("Unexpected TokenType evaluated")),
-    }
-  }
 }
 
 impl ASTree {
@@ -126,14 +26,76 @@ impl ASTree {
     self.children.push(child);
   }
 
-  pub fn eval(&mut self) {
-    match self.token.eval(self.clone()) {
-      Ok(exit_code) => {
-        print!("{exit_code}")
+  pub fn eval(&mut self) -> Result<TypeValue, String> {
+    match self.token.get_type() {
+      TokenType::START => {
+        let mut exit_code = 0;
+        for child in &mut self.children {
+          match child.eval() {
+            Ok(_) => continue,
+            Err(error) => {
+              print!("Error during execution: {error}");
+              exit_code = -1;
+              break;
+            }
+          };
+        }
+        return Ok(TypeValue::INTEGER(exit_code));
       }
-      Err(error) => {
-        panic!("{error}")
+
+      TokenType::NUMERIC => match self.token.get_value().parse::<i32>() {
+        Ok(result) => return Ok(TypeValue::INTEGER(result)),
+        Err(error) => return Err(error.to_string()),
+      },
+
+      TokenType::BINARYOP => {
+        if self.children.len() != 2 {
+          return Err(String::from(
+            "Invalid amount of params passed to Binary Operation Evaluation",
+          ));
+        }
+        let param1: i32 = match self.children[0].eval() {
+          Err(error) => return Err(error),
+          Ok(val) => match val {
+            TypeValue::INTEGER(n) => n,
+            _ => return Err(String::from("Invalid type provided to Binary Operator")),
+          },
+        };
+        let param2: i32 = match self.children[1].eval() {
+          Err(error) => return Err(error),
+          Ok(val) => match val {
+            TypeValue::INTEGER(n) => n,
+            _ => return Err(String::from("Invalid type provided to Binary Operator")),
+          },
+        };
+
+        match self.token.get_value().as_str() {
+          "+" => return Ok(TypeValue::INTEGER(param1 + param2)),
+          "-" => return Ok(TypeValue::INTEGER(param1 - param2)),
+          "*" => return Ok(TypeValue::INTEGER(param1 * param2)),
+          "/" => return Ok(TypeValue::INTEGER(param1 / param2)),
+          _ => return Err(String::from("Unexpected operator in BinOP evaluation")),
+        }
       }
+
+      TokenType::IDENTIFIER => return Err(String::from("Not yet implemented")),
+
+      TokenType::PRINT => {
+        if self.children.len() != 1 {
+          return Err(String::from("Invalid amount of params passed to print"));
+        }
+        match self.children[0].eval() {
+          Err(error) => return Err(error),
+          Ok(val) => match val {
+            TypeValue::INTEGER(n) => print!("{n}"),
+            TypeValue::STRING(s) => print!("{s}"),
+            _ => return Err(String::from("Unsupported Print TypeValue")),
+          },
+        };
+        return Ok(TypeValue::INTEGER(0));
+      }
+
+      _ => return Err(String::from("Unexpected TokenType evaluated")),
     }
   }
 }

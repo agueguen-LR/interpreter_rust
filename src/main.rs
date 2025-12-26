@@ -2,6 +2,7 @@ mod ast;
 mod identifiers;
 mod lexer;
 mod parser;
+mod token;
 
 use std::env;
 use std::fs;
@@ -25,5 +26,8 @@ fn main() {
   dbg!(&tokens);
   let mut tree = parser::parse(tokens);
   dbg!(&tree);
-  tree.eval();
+  match tree.eval() {
+    Ok(return_code) => dbg!(return_code),
+    Err(error) => panic!("{error}"),
+  };
 }
