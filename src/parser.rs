@@ -69,15 +69,21 @@ impl Parser {
           self.trees.push(node);
         }
         _ => {
-          panic!(
-            "Parser encountered unsupported token type during parsing: {:?}",
+          return Err(format!(
+            "{}{:?}",
+            String::from("Parser encountered unsupported token type during parsing: "),
             token.get_type()
-          );
+          ));
         }
       }
     }
 
     self.initialize_identifiers(identifiers);
-    Ok(String::from("Parsing successful, "))
+    Ok(format!(
+      "{}{}{}",
+      "Parsing successful, ",
+      { self.trees.len() },
+      " abstract syntax trees created",
+    ))
   }
 }

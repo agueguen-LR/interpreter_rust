@@ -29,7 +29,9 @@ fn main() {
   let mut parser = Parser::new();
   match parser.parse(tokens) {
     Err(error) => panic!("Error during parsing: {error}"),
-    _ => {}
+    Ok(info) => {
+      dbg!(info);
+    }
   }
 
   let astrees = parser.get_trees();

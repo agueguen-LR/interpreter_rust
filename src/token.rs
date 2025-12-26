@@ -19,7 +19,7 @@ pub enum TypeValue {
   BOOL(bool),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Token {
   token_type: TokenType,
   value: String,
@@ -41,5 +41,9 @@ impl Token {
 
   pub fn get_type(&mut self) -> &mut TokenType {
     &mut self.token_type
+  }
+
+  pub fn get_position(&mut self) -> usize {
+    self.pos
   }
 }

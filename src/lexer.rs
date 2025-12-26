@@ -48,7 +48,7 @@ pub fn tokenize(input: String) -> Result<Vec<Token>, String> {
       TokenType::NUMERIC => {
         if !character.is_ascii_digit() {
           return Result::Err(String::from(
-            "Identifier cannot start with a number, invalid input at index: {i}",
+            "Identifier cannot start with a number, invalid input at position: {i}",
           ));
         }
         value.push(character);
@@ -68,7 +68,7 @@ pub fn tokenize(input: String) -> Result<Vec<Token>, String> {
       }
       _ => {
         return Result::Err(String::from(
-          "Unexpected state reached during tokenization.",
+          "Unexpected state reached during tokenization at position: {i}",
         ));
       }
     }

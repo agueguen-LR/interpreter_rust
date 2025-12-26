@@ -4,7 +4,7 @@ use crate::token::Token;
 use crate::token::TokenType;
 use crate::token::TypeValue;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ASTree {
   children: Vec<ASTree>,
   token: Token,
@@ -31,22 +31,38 @@ impl ASTree {
 
       TokenType::BINARYOP => {
         if self.children.len() != 2 {
-          return Err(String::from(
-            "Invalid amount of params passed to Binary Operation Evaluation",
+          return Err(format!(
+            "{} {}",
+            String::from(
+              "Invalid amount of params passed to Binary Operation Evaluation, at position:"
+            ),
+            self.token.get_position()
           ));
         }
         let param1: i32 = match self.children[0].eval() {
           Err(error) => return Err(error),
           Ok(val) => match val {
             TypeValue::INTEGER(n) => n,
-            _ => return Err(String::from("Invalid type provided to Binary Operator")),
+            _ => {
+              return Err(format!(
+                "{} {}",
+                String::from("Invalid type provided to Binary Operator, at position:"),
+                self.children[0].token.get_position()
+              ));
+            }
           },
         };
         let param2: i32 = match self.children[1].eval() {
           Err(error) => return Err(error),
           Ok(val) => match val {
             TypeValue::INTEGER(n) => n,
-            _ => return Err(String::from("Invalid type provided to Binary Operator")),
+            _ => {
+              return Err(format!(
+                "{} {}",
+                String::from("Invalid type provided to Binary Operator, at position:"),
+                self.children[1].token.get_position()
+              ));
+            }
           },
         };
 
@@ -55,7 +71,13 @@ impl ASTree {
           "-" => return Ok(TypeValue::INTEGER(param1 - param2)),
           "*" => return Ok(TypeValue::INTEGER(param1 * param2)),
           "/" => return Ok(TypeValue::INTEGER(param1 / param2)),
-          _ => return Err(String::from("Unexpected operator in BinOP evaluation")),
+          _ => {
+            return Err(format!(
+              "{} {}",
+              String::from("Unexpected operator in BinOP evaluation, at position:"),
+              self.token.get_position(),
+            ));
+          }
         }
       }
 
@@ -63,20 +85,36 @@ impl ASTree {
 
       TokenType::PRINT => {
         if self.children.len() != 1 {
-          return Err(String::from("Invalid amount of params passed to print"));
+          return Err(format!(
+            "{} {}",
+            String::from("Invalid amount of params passed to print, at position:"),
+            self.token.get_position()
+          ));
         }
         match self.children[0].eval() {
           Err(error) => return Err(error),
           Ok(val) => match val {
             TypeValue::INTEGER(n) => print!("{n}"),
             TypeValue::STRING(s) => print!("{s}"),
-            _ => return Err(String::from("Unsupported Print TypeValue")),
+            _ => {
+              return Err(format!(
+                "{} {}",
+                String::from("Unsupported Print TypeValue, at position:"),
+                self.children[0].token.get_position()
+              ));
+            }
           },
         };
         return Ok(TypeValue::INTEGER(0));
       }
 
-      _ => return Err(String::from("Unexpected TokenType evaluated")),
+      _ => {
+        return Err(format!(
+          "{} {:?}",
+          "Unexpected TokenType evaluated: ",
+          self.token.get_type()
+        ));
+      }
     }
   }
 }
