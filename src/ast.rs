@@ -1,5 +1,6 @@
 /* Abstract syntax tree (AST) */
 
+use crate::identifiers;
 use crate::token::Token;
 use crate::token::TokenType;
 use crate::token::TypeValue;
@@ -79,31 +80,20 @@ impl ASTree {
         }
       }
 
-      TokenType::IDENTIFIER => return Err(String::from("Not yet implemented")),
+      TokenType::IDENTIFIER => match identifiers::get_identifier(self.token.get_value()) {
+        Some(val) => Ok(val),
+        None => Err(format!("Attempted to access unset identifier")),
+      },
 
-      TokenType::PRINT => {
-        if self.children.len() != 1 {
-          return Err(format!(
-            "{} {}",
-            "Invalid amount of params passed to print, at position:",
-            self.token.get_position()
-          ));
-        }
-        match self.children[0].eval() {
-          Err(error) => return Err(error),
-          Ok(val) => match val {
-            TypeValue::INTEGER(n) => print!("{n}"),
-            TypeValue::STRING(s) => print!("{s}"),
-            _ => {
-              return Err(format!(
-                "{} {}",
-                "Unsupported Print TypeValue, at position:",
-                self.children[0].token.get_position()
-              ));
-            }
-          },
-        };
-        return Ok(TypeValue::INTEGER(0));
+      TokenType::ASSIGN => {
+        identifiers::set_identifier(
+          self.children[0].token.get_value().clone(),
+          self.children[1].eval()?,
+        );
+        dbg!(identifiers::get_identifier(
+          self.children[0].token.get_value()
+        ));
+        Ok(TypeValue::BOOL(true))
       }
 
       _ => {

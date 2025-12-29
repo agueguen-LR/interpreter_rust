@@ -6,24 +6,28 @@ use std::sync::OnceLock;
 
 pub static IDENTIFIERS: OnceLock<Mutex<HashMap<String, TypeValue>>> = OnceLock::new();
 
-macro_rules! get_identifier {
-  ($key:expr) => {
-    IDENTIFIERS
-      .get()
-      .expect("IDENTIFIERS not initialized")
-      .lock()
-      .unwrap()
-      .get($key)
-  };
+pub fn init_identifiers() {
+  match IDENTIFIERS.get() {
+    None => IDENTIFIERS.set(Mutex::new(HashMap::new())).unwrap(),
+    _ => {}
+  }
 }
 
-macro_rules! set_identifier {
-  ($key:expr, $value:expr) => {
-    IDENTIFIERS
-      .get()
-      .expect("IDENTIFIERS not initialized")
-      .lock()
-      .unwrap()
-      .insert($key.to_string(), $value)
-  };
+pub fn get_identifier(key: &String) -> Option<TypeValue> {
+  IDENTIFIERS
+    .get()
+    .expect("IDENTIFIERS not initialized")
+    .lock()
+    .unwrap()
+    .get(key)
+    .cloned()
+}
+
+pub fn set_identifier(key: String, value: TypeValue) {
+  IDENTIFIERS
+    .get()
+    .expect("IDENTIFIERS not initialized")
+    .lock()
+    .unwrap()
+    .insert(key.to_string(), value);
 }

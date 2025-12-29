@@ -3,6 +3,7 @@ pub enum TokenType {
   NUMERIC,
   IDENTIFIER,
   BINARYOP,
+  ASSIGN,
   IF,
   WHILE,
   FOR,
@@ -11,7 +12,7 @@ pub enum TokenType {
   PRINT,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum TypeValue {
   INTEGER(i32),
   STRING(String),

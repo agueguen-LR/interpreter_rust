@@ -8,6 +8,7 @@ fn match_keyword(ident: &str) -> TokenType {
     "while" => TokenType::WHILE,
     "for" => TokenType::FOR,
     "print" => TokenType::PRINT,
+    "=" => TokenType::ASSIGN,
     _ => TokenType::IDENTIFIER,
   }
 }
@@ -18,7 +19,6 @@ fn match_operator(character: char) -> bool {
     '-' => true,
     '*' => true,
     '/' => true,
-    '=' => true,
     _ => false,
   }
 }
@@ -29,7 +29,7 @@ pub fn tokenize(input: String) -> Result<Vec<Token>, String> {
   let mut value: String = String::new();
 
   for (i, character) in input.chars().enumerate() {
-    if character == ' ' || character == '\n' || match_operator(character) {
+    if character == ' ' || character == '\n' || character == '=' || match_operator(character) {
       if value.len() != 0 {
         if state == TokenType::IDENTIFIER {
           state = match_keyword(value.as_str());
@@ -41,6 +41,9 @@ pub fn tokenize(input: String) -> Result<Vec<Token>, String> {
       if match_operator(character) {
         output.push(Token::new(TokenType::BINARYOP, character.to_string(), i));
       }
+      if character == '=' {
+        output.push(Token::new(TokenType::ASSIGN, String::from("="), i))
+      }
       continue;
     }
 
@@ -48,8 +51,8 @@ pub fn tokenize(input: String) -> Result<Vec<Token>, String> {
       TokenType::NUMERIC => {
         if !character.is_ascii_digit() {
           return Result::Err(format!(
-            "{} {}",
-            "Identifier cannot start with a number, invalid input at position:", i
+            "Identifier cannot start with a number, invalid input at position: {}",
+            i
           ));
         }
         value.push(character);
@@ -69,8 +72,8 @@ pub fn tokenize(input: String) -> Result<Vec<Token>, String> {
       }
       _ => {
         return Result::Err(format!(
-          "{} {}",
-          "Unexpected state reached during tokenization at position:", i
+          "Unexpected state reached during tokenization at position: {}",
+          i
         ));
       }
     }

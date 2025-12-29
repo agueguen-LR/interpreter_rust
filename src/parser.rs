@@ -35,7 +35,7 @@ fn convert_to_shunting_type(token: &Token) -> ShuntingType {
     TokenType::BINARYOP => {
       ShuntingType::OPERATOR(match_operator_to_priority(token.get_value().as_str()))
     }
-    TokenType::INVALID => {
+    _ => {
       panic!("Invalid TokenType passed to Shunting Yard algorithm during expression parsing")
     }
   }
@@ -48,6 +48,7 @@ pub struct Parser {
 
 impl Parser {
   pub fn new() -> Parser {
+    identifiers::init_identifiers();
     Parser {
       tokens: Vec::new(),
       pos: 0,
@@ -66,16 +67,6 @@ impl Parser {
 
   pub fn set_tokens(&mut self, tokens: Vec<Token>) {
     self.tokens = tokens;
-  }
-
-  fn initialize_identifiers(&mut self, identifiers: HashMap<String, TypeValue>) {
-    match identifiers::IDENTIFIERS.set(Mutex::new(identifiers)) {
-      Ok(_) => {}
-      Err(err) => panic!(
-        "Failed to set IDENTIFIERS static HashMap after parsing, IDENTIFIERS was erroneously already set: {:?}",
-        err
-      ),
-    }
   }
 
   fn shunting_yard(&mut self) -> Result<Vec<Token>, String> {
@@ -112,6 +103,19 @@ impl Parser {
     Ok(output)
   }
 
+  fn parse_assign(&mut self) -> Result<ASTree, String> {
+    let identifier: Token = self.advance();
+    identifiers::set_identifier(identifier.get_value().clone(), TypeValue::NULL);
+    let mut output: ASTree = ASTree::new(self.advance());
+    output.append(ASTree::new(identifier));
+    let value: ASTree = match self.parse_expression() {
+      Ok(tree) => tree,
+      Err(error) => return Err(error),
+    };
+    output.append(value);
+    Ok(output)
+  }
+
   fn parse_if(&mut self) -> Result<ASTree, String> {
     Err(format!("Not implemented"))
   }
@@ -132,7 +136,7 @@ impl Parser {
         TokenType::BINARYOP => {
           let mut node: ASTree = ASTree::new(token);
           let right: ASTree = output.pop().expect(
-            "Failed to pop right node from self.trees stack during parsing for binary operation",
+            "Failed to pop right node from token stack during parsing for binary operation",
           );
           let left: ASTree = output.pop().expect(
             "Failed to pop left token from token stack during parsing for binary operation",
@@ -171,6 +175,13 @@ impl Parser {
   pub fn parse(&mut self) -> Result<ASTree, String> {
     match self.peek().get_type() {
       TokenType::IF => self.parse_if(),
+      TokenType::IDENTIFIER => {
+        if *self.tokens[self.pos + 1].get_type() == TokenType::ASSIGN {
+          self.parse_assign()
+        } else {
+          self.parse_expression()
+        }
+      }
       _ => self.parse_expression(),
     }
   }
