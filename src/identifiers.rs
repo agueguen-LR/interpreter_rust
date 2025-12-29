@@ -1,10 +1,10 @@
-use crate::token::Token;
+use crate::token::TypeValue;
 
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::sync::OnceLock;
 
-pub static IDENTIFIERS: OnceLock<Mutex<HashMap<String, Token>>> = OnceLock::new();
+pub static IDENTIFIERS: OnceLock<Mutex<HashMap<String, TypeValue>>> = OnceLock::new();
 
 macro_rules! get_identifier {
   ($key:expr) => {

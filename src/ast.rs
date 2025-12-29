@@ -33,9 +33,7 @@ impl ASTree {
         if self.children.len() != 2 {
           return Err(format!(
             "{} {}",
-            String::from(
-              "Invalid amount of params passed to Binary Operation Evaluation, at position:"
-            ),
+            "Invalid amount of params passed to Binary Operation Evaluation, at position:",
             self.token.get_position()
           ));
         }
@@ -46,7 +44,7 @@ impl ASTree {
             _ => {
               return Err(format!(
                 "{} {}",
-                String::from("Invalid type provided to Binary Operator, at position:"),
+                "Invalid type provided to Binary Operator, at position:",
                 self.children[0].token.get_position()
               ));
             }
@@ -59,7 +57,7 @@ impl ASTree {
             _ => {
               return Err(format!(
                 "{} {}",
-                String::from("Invalid type provided to Binary Operator, at position:"),
+                "Invalid type provided to Binary Operator, at position:",
                 self.children[1].token.get_position()
               ));
             }
@@ -74,7 +72,7 @@ impl ASTree {
           _ => {
             return Err(format!(
               "{} {}",
-              String::from("Unexpected operator in BinOP evaluation, at position:"),
+              "Unexpected operator in BinOP evaluation, at position:",
               self.token.get_position(),
             ));
           }
@@ -87,7 +85,7 @@ impl ASTree {
         if self.children.len() != 1 {
           return Err(format!(
             "{} {}",
-            String::from("Invalid amount of params passed to print, at position:"),
+            "Invalid amount of params passed to print, at position:",
             self.token.get_position()
           ));
         }
@@ -99,7 +97,7 @@ impl ASTree {
             _ => {
               return Err(format!(
                 "{} {}",
-                String::from("Unsupported Print TypeValue, at position:"),
+                "Unsupported Print TypeValue, at position:",
                 self.children[0].token.get_position()
               ));
             }

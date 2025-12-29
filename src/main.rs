@@ -8,6 +8,28 @@ use crate::parser::Parser;
 use std::env;
 use std::fs;
 
+fn interpret(code: String) {
+  let mut parser = Parser::new();
+
+  let tokens = match lexer::tokenize(code) {
+    Err(error) => panic!("Error during lexing: {error}"),
+    Ok(toks) => toks,
+  };
+  dbg!(&tokens);
+
+  parser.set_tokens(tokens);
+  let mut tree = match parser.parse() {
+    Err(error) => panic!("Error during parsing: {error}"),
+    Ok(tree) => tree,
+  };
+
+  dbg!(&tree);
+  match tree.eval() {
+    Ok(return_value) => dbg!(return_value),
+    Err(error) => panic!("Error during runtime: {error}"),
+  };
+}
+
 fn main() {
   let argv: Vec<String> = env::args().collect();
   let argc: usize = argv.len();
@@ -20,26 +42,5 @@ fn main() {
     fs::read_to_string(argv[1].clone()).expect("Failed to read file: {argv[1]}");
   print!("{file_content}");
 
-  let tokens = match lexer::tokenize(file_content) {
-    Err(error) => panic!("Error during lexing: {error}"),
-    Ok(toks) => toks,
-  };
-  dbg!(&tokens);
-
-  let mut parser = Parser::new();
-  match parser.parse(tokens) {
-    Err(error) => panic!("Error during parsing: {error}"),
-    Ok(info) => {
-      dbg!(info);
-    }
-  }
-
-  let astrees = parser.get_trees();
-  dbg!(&astrees);
-  for tree in astrees {
-    match tree.eval() {
-      Ok(return_code) => dbg!(return_code),
-      Err(error) => panic!("Error during runtime: {error}"),
-    };
-  }
+  interpret(file_content);
 }
