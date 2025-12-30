@@ -1,3 +1,8 @@
+//! A lexer module for tokenizing input strings.
+//!
+//! This module provides a `Lexer` struct that can tokenize input strings into a sequence of
+//! tokens.
+
 use crate::token::Token;
 use crate::token::TokenType;
 

@@ -1,3 +1,8 @@
+//! An interpreter for a custom programming language.
+//!
+//! This module serves as the entry point for the interpreter, handling
+//! reading input files, lexing, parsing, and evaluating the code.
+
 mod ast;
 mod identifiers;
 mod lexer;
@@ -9,28 +14,35 @@ use crate::parser::Parser;
 use std::env;
 use std::fs;
 
+/// Interprets the given code string by lexing, parsing, and evaluating it.
+///
+/// # Arguments
+///
+/// * `code` - The code string to be interpreted.
 fn interpret(code: String) {
   let mut lexer = Lexer::new();
   let mut parser = Parser::new();
 
   lexer.set_input(code);
   let tokens = match lexer.tokenize() {
-    Err(error) => panic!("Error during lexing: {error}"),
+    Err(error) => panic!("Error during lexing: {:?}", error),
     Ok(toks) => toks,
   };
   dbg!(&tokens);
 
   parser.set_tokens(tokens);
-  let mut tree = match parser.parse() {
+  let trees = match parser.parse() {
     Err(error) => panic!("Error during parsing: {error}"),
     Ok(tree) => tree,
   };
-  dbg!(&tree);
+  dbg!(&trees);
 
-  match tree.eval() {
-    Ok(return_value) => dbg!(return_value),
-    Err(error) => panic!("Error during runtime: {error}"),
-  };
+  for mut tree in trees {
+    match tree.eval() {
+      Ok(_return_value) => {}
+      Err(error) => panic!("Error during runtime: {error}"),
+    };
+  }
 }
 
 fn main() {
@@ -46,4 +58,12 @@ fn main() {
   print!("{file_content}");
 
   interpret(file_content);
+
+  // testing area
+  let a = identifiers::get_identifier(&String::from("a"));
+  let b = identifiers::get_identifier(&String::from("b"));
+  let c = identifiers::get_identifier(&String::from("c"));
+  dbg!(a);
+  dbg!(b);
+  dbg!(c);
 }
