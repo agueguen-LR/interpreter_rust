@@ -3,7 +3,14 @@
 use crate::identifiers;
 use crate::token::Token;
 use crate::token::TokenType;
-use crate::token::TypeValue;
+
+#[derive(Clone, Debug)]
+pub enum TypeValue {
+  INTEGER(i32),
+  STRING(String),
+  NULL,
+  BOOL(bool),
+}
 
 #[derive(Debug)]
 pub struct ASTree {
@@ -81,8 +88,8 @@ impl ASTree {
       }
 
       TokenType::IDENTIFIER => match identifiers::get_identifier(self.token.get_value()) {
-        Some(val) => Ok(val),
-        None => Err(format!("Attempted to access unset identifier")),
+        Option::Some(val) => Ok(val),
+        Option::None => Err(format!("Attempted to access unset identifier")),
       },
 
       TokenType::ASSIGN => {

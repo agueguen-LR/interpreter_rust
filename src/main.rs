@@ -4,14 +4,17 @@ mod lexer;
 mod parser;
 mod token;
 
+use crate::lexer::Lexer;
 use crate::parser::Parser;
 use std::env;
 use std::fs;
 
 fn interpret(code: String) {
+  let mut lexer = Lexer::new();
   let mut parser = Parser::new();
 
-  let tokens = match lexer::tokenize(code) {
+  lexer.set_input(code);
+  let tokens = match lexer.tokenize() {
     Err(error) => panic!("Error during lexing: {error}"),
     Ok(toks) => toks,
   };
@@ -22,8 +25,8 @@ fn interpret(code: String) {
     Err(error) => panic!("Error during parsing: {error}"),
     Ok(tree) => tree,
   };
-
   dbg!(&tree);
+
   match tree.eval() {
     Ok(return_value) => dbg!(return_value),
     Err(error) => panic!("Error during runtime: {error}"),

@@ -2,10 +2,6 @@ use crate::ast::ASTree;
 use crate::identifiers;
 use crate::token::Token;
 use crate::token::TokenType;
-use crate::token::TypeValue;
-
-use std::collections::HashMap;
-use std::sync::Mutex;
 
 enum ShuntingType {
   OPERATOR(u8),
@@ -27,7 +23,7 @@ fn convert_to_shunting_type(token: &Token) -> ShuntingType {
   match token.get_type() {
     TokenType::NUMERIC => ShuntingType::NUMBER,
     TokenType::FOR => ShuntingType::END,
-    TokenType::PRINT => ShuntingType::END,
+    // TokenType::PRINT => ShuntingType::END,
     TokenType::WHILE => ShuntingType::END,
     TokenType::ELSE => ShuntingType::END,
     TokenType::IF => ShuntingType::END,
@@ -105,7 +101,7 @@ impl Parser {
 
   fn parse_assign(&mut self) -> Result<ASTree, String> {
     let identifier: Token = self.advance();
-    identifiers::set_identifier(identifier.get_value().clone(), TypeValue::NULL);
+    identifiers::set_identifier(identifier.get_value().clone(), crate::ast::TypeValue::NULL);
     let mut output: ASTree = ASTree::new(self.advance());
     output.append(ASTree::new(identifier));
     let value: ASTree = match self.parse_expression() {
@@ -145,11 +141,11 @@ impl Parser {
           node.append(right);
           output.push(node);
         }
-        TokenType::PRINT => {
-          let mut node: ASTree = ASTree::new(token);
-          node.append(output.pop().expect("No argument provided to print keyword"));
-          output.push(node);
-        }
+        // TokenType::PRINT => {
+        //   let mut node: ASTree = ASTree::new(token);
+        //   node.append(output.pop().expect("No argument provided to print keyword"));
+        //   output.push(node);
+        // }
         _ => {
           return Err(format!(
             "{}{:?}",

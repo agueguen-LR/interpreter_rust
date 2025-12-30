@@ -1,82 +1,196 @@
 use crate::token::Token;
 use crate::token::TokenType;
 
-fn match_keyword(ident: &str) -> TokenType {
-  match ident {
-    "if" => TokenType::IF,
-    "else" => TokenType::ELSE,
-    "while" => TokenType::WHILE,
-    "for" => TokenType::FOR,
-    "print" => TokenType::PRINT,
-    "=" => TokenType::ASSIGN,
-    _ => TokenType::IDENTIFIER,
-  }
+/// Represents the current state of the lexer.
+enum LexerState {
+  /// Parsing a number.
+  NUMBER,
+  /// Parsing an identifier.
+  IDENTIFIER,
+  /// Parsing a symbol
+  SYMBOL,
+  /// No current state.
+  NONE,
 }
 
-fn match_operator(character: char) -> bool {
-  match character {
-    '+' => true,
-    '-' => true,
-    '*' => true,
-    '/' => true,
-    _ => false,
-  }
+/// A lexer for tokenizing input strings.
+pub struct Lexer {
+  input: String,
+  index: usize,
+  state: LexerState,
+  current_token_string: String,
+  current_token_position: usize,
 }
 
-pub fn tokenize(input: String) -> Result<Vec<Token>, String> {
-  let mut output: Vec<Token> = Vec::new();
-  let mut state: TokenType = TokenType::INVALID;
-  let mut value: String = String::new();
-
-  for (i, character) in input.chars().enumerate() {
-    if character == ' ' || character == '\n' || character == '=' || match_operator(character) {
-      if value.len() != 0 {
-        if state == TokenType::IDENTIFIER {
-          state = match_keyword(value.as_str());
-        }
-        output.push(Token::new(state.clone(), value.clone(), i));
-        state = TokenType::INVALID;
-        value = String::new();
-      }
-      if match_operator(character) {
-        output.push(Token::new(TokenType::BINARYOP, character.to_string(), i));
-      }
-      if character == '=' {
-        output.push(Token::new(TokenType::ASSIGN, String::from("="), i))
-      }
-      continue;
+impl Lexer {
+  /// Creates a new `Lexer` instance.
+  pub fn new() -> Lexer {
+    Lexer {
+      input: String::new(),
+      index: 0,
+      state: LexerState::NONE,
+      current_token_string: String::new(),
+      current_token_position: 0,
     }
+  }
 
-    match state {
-      TokenType::NUMERIC => {
-        if !character.is_ascii_digit() {
-          return Result::Err(format!(
-            "Identifier cannot start with a number, invalid input at position: {}",
-            i
-          ));
-        }
-        value.push(character);
-      }
-      TokenType::IDENTIFIER => {
-        value.push(character);
-      }
-      TokenType::INVALID => {
-        if character.is_ascii_digit() {
-          state = TokenType::NUMERIC;
-          value.push(character);
-        }
-        if character.is_ascii_alphabetic() {
-          state = TokenType::IDENTIFIER;
-          value.push(character);
-        }
-      }
+  /// Sets the input string for the lexer.
+  ///
+  /// # Arguments
+  ///
+  /// * `input` - The input string to be tokenized.
+  pub fn set_input(&mut self, input: String) {
+    self.input = input;
+    self.index = 0;
+    self.state = LexerState::NONE;
+    self.current_token_string.clear();
+    self.current_token_position = 0;
+  }
+
+  /// Checks if a character is a valid symbol.
+  fn is_valid_symbol(character: char) -> bool {
+    match character {
+      '+' | '-' | '*' | '/' | '=' | '(' | ')' | '{' | '}' => true,
+      _ => false,
+    }
+  }
+
+  /// Emits a number token based on the current token string.
+  ///
+  /// # Arguments
+  ///
+  /// * `tokens` - A mutable reference to the vector of tokens.
+  fn emit_number_token(&mut self, tokens: &mut Vec<Token>) {
+    tokens.push(Token::new(
+      TokenType::NUMERIC,
+      self.current_token_string.clone(),
+      self.current_token_position,
+    ));
+    self.current_token_string.clear();
+    self.state = LexerState::NONE;
+  }
+
+  /// Emits an identifier token based on the current token string.
+  ///
+  /// # Arguments
+  ///
+  /// * `tokens` - A mutable reference to the vector of tokens.
+  fn emit_identifier_token(&mut self, tokens: &mut Vec<Token>) {
+    let token_type = match self.current_token_string.as_str() {
+      "if" => TokenType::IF,
+      "while" => TokenType::WHILE,
+      "for" => TokenType::FOR,
+      "else" => TokenType::ELSE,
+      _ => TokenType::IDENTIFIER,
+    };
+    tokens.push(Token::new(
+      token_type,
+      self.current_token_string.clone(),
+      self.current_token_position,
+    ));
+    self.current_token_string.clear();
+    self.state = LexerState::NONE;
+  }
+
+  /// Emits a symbol token based on the current token string.
+  ///
+  /// # Arguments
+  ///
+  /// * `tokens` - A mutable reference to the vector of tokens.
+  ///
+  /// # Returns
+  ///
+  /// * `Result<(), String>` - A result indicating success or an error message.
+  fn emit_symbol_token(&mut self, tokens: &mut Vec<Token>) -> Result<(), String> {
+    let token_type = match self.current_token_string.as_str() {
+      "+" | "-" | "*" | "/" | "==" => TokenType::BINARYOP,
+      "=" => TokenType::ASSIGN,
       _ => {
-        return Result::Err(format!(
-          "Unexpected state reached during tokenization at position: {}",
-          i
+        return Err(format!(
+          "Invalid symbol '{}' at position {}",
+          self.current_token_string, self.current_token_position
         ));
       }
-    }
+    };
+    tokens.push(Token::new(
+      token_type,
+      self.current_token_string.clone(),
+      self.current_token_position,
+    ));
+    self.current_token_string.clear();
+    self.state = LexerState::NONE;
+    Ok(())
   }
-  Result::Ok(output)
+
+  /// Tokenizes the input string into a vector of tokens.
+  ///
+  /// # Returns
+  ///
+  /// * `Result<Vec<Token>, String>` - A result containing a vector of tokens or an error message.
+  pub fn tokenize(&mut self) -> Result<Vec<Token>, String> {
+    let mut tokens: Vec<Token> = Vec::new();
+
+    while self.index < self.input.len() {
+      let character: char = self.input.chars().nth(self.index).unwrap();
+      match self.state {
+        LexerState::NONE => {
+          if character.is_ascii_digit() {
+            self.state = LexerState::NUMBER;
+            self.current_token_position = self.index;
+          } else if character.is_ascii_alphabetic() || character == '_' {
+            self.state = LexerState::IDENTIFIER;
+            self.current_token_position = self.index;
+          } else if Self::is_valid_symbol(character) {
+            self.state = LexerState::SYMBOL;
+            self.current_token_position = self.index;
+          } else if character.is_whitespace() {
+            self.index += 1;
+          } else {
+            return Err(format!(
+              "Invalid character '{}' at position {}",
+              character, self.index
+            ));
+          }
+        }
+
+        LexerState::NUMBER => {
+          if !character.is_ascii_digit() {
+            self.emit_number_token(&mut tokens);
+          } else {
+            self.current_token_string.push(character);
+            self.index += 1;
+          }
+        }
+
+        LexerState::IDENTIFIER => {
+          if !(character.is_ascii_alphanumeric() || character == '_') {
+            self.emit_identifier_token(&mut tokens);
+          } else {
+            self.current_token_string.push(character);
+            self.index += 1;
+          }
+        }
+
+        LexerState::SYMBOL => {
+          if !Self::is_valid_symbol(character) {
+            self.emit_symbol_token(&mut tokens)?;
+          } else {
+            self.current_token_string.push(character);
+            self.index += 1;
+          }
+        }
+      }
+    }
+
+    if !self.current_token_string.is_empty() {
+      match self.state {
+        LexerState::NUMBER => self.emit_number_token(&mut tokens),
+        LexerState::IDENTIFIER => self.emit_identifier_token(&mut tokens),
+        LexerState::SYMBOL => self.emit_symbol_token(&mut tokens)?,
+        LexerState::NONE => {}
+      }
+    }
+
+    Ok(tokens)
+  }
 }

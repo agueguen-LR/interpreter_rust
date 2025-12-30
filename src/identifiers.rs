@@ -1,4 +1,4 @@
-use crate::token::TypeValue;
+use crate::ast::TypeValue;
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -8,7 +8,7 @@ pub static IDENTIFIERS: OnceLock<Mutex<HashMap<String, TypeValue>>> = OnceLock::
 
 pub fn init_identifiers() {
   match IDENTIFIERS.get() {
-    None => IDENTIFIERS.set(Mutex::new(HashMap::new())).unwrap(),
+    Option::None => IDENTIFIERS.set(Mutex::new(HashMap::new())).unwrap(),
     _ => {}
   }
 }
@@ -18,7 +18,7 @@ pub fn get_identifier(key: &String) -> Option<TypeValue> {
     .get()
     .expect("IDENTIFIERS not initialized")
     .lock()
-    .unwrap()
+    .expect("Failed to lock IDENTIFIERS mutex whilst getting identifier")
     .get(key)
     .cloned()
 }
@@ -28,6 +28,6 @@ pub fn set_identifier(key: String, value: TypeValue) {
     .get()
     .expect("IDENTIFIERS not initialized")
     .lock()
-    .unwrap()
+    .expect("Failed to lock IDENTIFIERS mutex whilst setting identifier")
     .insert(key.to_string(), value);
 }
