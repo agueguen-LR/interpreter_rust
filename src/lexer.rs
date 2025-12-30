@@ -55,7 +55,7 @@ impl Lexer {
   /// Checks if a character is a valid symbol.
   fn is_valid_symbol(character: char) -> bool {
     match character {
-      '+' | '-' | '*' | '/' | '=' | '(' | ')' | '{' | '}' => true,
+      '+' | '-' | '*' | '/' | '=' | '(' | ')' | '{' | '}' | '!' | '&' | '|' => true,
       _ => false,
     }
   }
@@ -108,7 +108,7 @@ impl Lexer {
   /// * `Result<(), String>` - A result indicating success or an error message.
   fn emit_symbol_token(&mut self, tokens: &mut Vec<Token>) -> Result<(), String> {
     let token_type = match self.current_token_string.as_str() {
-      "+" | "-" | "*" | "/" | "==" => TokenType::BINARYOP,
+      "+" | "-" | "*" | "/" | "==" | "!=" | "&&" | "||" => TokenType::BINARYOP,
       "=" => TokenType::ASSIGN,
       _ => {
         return Err(format!(

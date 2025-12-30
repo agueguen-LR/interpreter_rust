@@ -31,10 +31,14 @@ enum ShuntingType {
 /// * `u8` - The priority of the operator.
 fn match_operator_to_priority(operator: &str) -> u8 {
   match operator {
-    "+" => 1,
-    "-" => 1,
-    "/" => 2,
-    "*" => 2,
+    "==" => 1,
+    "!=" => 1,
+    "&&" => 1,
+    "||" => 1,
+    "+" => 2,
+    "-" => 2,
+    "/" => 3,
+    "*" => 3,
     _ => panic!("Unsupported Operator in match_operator_to_priority"),
   }
 }
@@ -74,7 +78,6 @@ pub struct Parser {
 impl Parser {
   /// Creates a new Parser instance.
   pub fn new() -> Parser {
-    identifiers::init_identifiers();
     Parser {
       tokens: Vec::new(),
       pos: 0,
@@ -135,13 +138,9 @@ impl Parser {
 
           while operator_stack.len() > 0
             && val
-              <= match_operator_to_priority(operator_stack.last().expect("").get_value().as_str())
+              <= match_operator_to_priority(operator_stack.last().unwrap().get_value().as_str())
           {
-            output.push(
-              operator_stack
-                .pop()
-                .expect("Error emptying operator stack in Shunting yard algorithm"),
-            )
+            output.push(operator_stack.pop().unwrap())
           }
           operator_stack.push(self.advance());
           prev = ShuntingType::OPERATOR(val);
@@ -162,13 +161,8 @@ impl Parser {
       }
     }
     while !operator_stack.is_empty() {
-      output.push(
-        operator_stack
-          .pop()
-          .expect("Error emptying operator stack in Shunting yard algorithm"),
-      );
+      output.push(operator_stack.pop().unwrap());
     }
-    dbg!(&output);
     Ok(output)
   }
 
@@ -224,11 +218,6 @@ impl Parser {
           node.append(right);
           output.push(node);
         }
-        // TokenType::PRINT => {
-        //   let mut node: ASTree = ASTree::new(token);
-        //   node.append(output.pop().expect("No argument provided to print keyword"));
-        //   output.push(node);
-        // }
         _ => {
           return Err(format!(
             "Parser encountered unsupported token type during parsing: {:?}",
@@ -239,11 +228,7 @@ impl Parser {
     }
 
     if output.len() == 1 {
-      return Ok(
-        output
-          .pop()
-          .expect("Unexpectedly empty Vec popped at end of expression parsing"),
-      );
+      return Ok(output.pop().unwrap());
     }
     Err(format!(
       "Expression parsing failed to resolve to singular ASTree"

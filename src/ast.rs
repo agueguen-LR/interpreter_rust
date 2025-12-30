@@ -53,6 +53,66 @@ impl ASTree {
     self.children.push(child);
   }
 
+  /// Evaluates a binary operation ASTree node.
+  ///
+  /// # Returns
+  ///
+  /// * `Ok(RuntimeValue)` if evaluation is successful.
+  /// * `Err(String)` if an error occurs during evaluation.
+  fn eval_binary_op(&mut self) -> Result<RuntimeValue, String> {
+    if self.children.len() != 2 {
+      return Err(format!(
+        "Invalid amount of params passed to Binary Operation Evaluation, at position: {}",
+        self.token.get_position()
+      ));
+    }
+    let param1: RuntimeValue = self.children[0].eval()?;
+    let param2: RuntimeValue = self.children[1].eval()?;
+
+    match (param1, param2) {
+      (RuntimeValue::INTEGER(val1), RuntimeValue::INTEGER(val2)) => {
+        match self.token.get_value().as_str() {
+          "+" => Ok(RuntimeValue::INTEGER(val1 + val2)),
+          "-" => Ok(RuntimeValue::INTEGER(val1 - val2)),
+          "*" => Ok(RuntimeValue::INTEGER(val1 * val2)),
+          "/" => {
+            if val2 == 0 {
+              Err(format!(
+                "Division by zero error at position: {}",
+                self.token.get_position()
+              ))
+            } else {
+              Ok(RuntimeValue::INTEGER(val1 / val2))
+            }
+          }
+          "==" => Ok(RuntimeValue::BOOL(val1 == val2)),
+          "!=" => Ok(RuntimeValue::BOOL(val1 != val2)),
+          _ => Err(format!(
+            "Unsupported binary operator: '{}' between integers, at position: {}",
+            self.token.get_value(),
+            self.token.get_position()
+          )),
+        }
+      }
+
+      (RuntimeValue::BOOL(val1), RuntimeValue::BOOL(val2)) => match self.token.get_value().as_str()
+      {
+        "&&" => Ok(RuntimeValue::BOOL(val1 && val2)),
+        "||" => Ok(RuntimeValue::BOOL(val1 || val2)),
+        _ => Err(format!(
+          "Unsupported binary operator: '{}' between booleans, at position: {}",
+          self.token.get_value(),
+          self.token.get_position()
+        )),
+      },
+      _ => Err(format!(
+        "Type mismatch for binary operation {} at position: {}",
+        self.token.get_value(),
+        self.token.get_position()
+      )),
+    }
+  }
+
   /// Evaluates the ASTree node and returns the resulting RuntimeValue.
   ///
   /// # Returns
@@ -66,51 +126,7 @@ impl ASTree {
         Err(error) => return Err(error.to_string()),
       },
 
-      TokenType::BINARYOP => {
-        if self.children.len() != 2 {
-          return Err(format!(
-            "Invalid amount of params passed to Binary Operation Evaluation, at position: {}",
-            self.token.get_position()
-          ));
-        }
-        let param1: i32 = match self.children[0].eval() {
-          Err(error) => return Err(error),
-          Ok(val) => match val {
-            RuntimeValue::INTEGER(n) => n,
-            _ => {
-              return Err(format!(
-                "Invalid type provided to Binary Operator, at position: {}",
-                self.children[0].token.get_position()
-              ));
-            }
-          },
-        };
-        let param2: i32 = match self.children[1].eval() {
-          Err(error) => return Err(error),
-          Ok(val) => match val {
-            RuntimeValue::INTEGER(n) => n,
-            _ => {
-              return Err(format!(
-                "Invalid type provided to Binary Operator, at position: {}",
-                self.children[1].token.get_position()
-              ));
-            }
-          },
-        };
-
-        match self.token.get_value().as_str() {
-          "+" => return Ok(RuntimeValue::INTEGER(param1 + param2)),
-          "-" => return Ok(RuntimeValue::INTEGER(param1 - param2)),
-          "*" => return Ok(RuntimeValue::INTEGER(param1 * param2)),
-          "/" => return Ok(RuntimeValue::INTEGER(param1 / param2)),
-          _ => {
-            return Err(format!(
-              "Unexpected operator in BinOP evaluation, at position: {}",
-              self.token.get_position(),
-            ));
-          }
-        }
-      }
+      TokenType::BINARYOP => self.eval_binary_op(),
 
       TokenType::IDENTIFIER => match identifiers::get_identifier(self.token.get_value()) {
         Option::Some(val) => Ok(val),

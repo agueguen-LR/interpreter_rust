@@ -20,6 +20,7 @@ use std::fs;
 ///
 /// * `code` - The code string to be interpreted.
 fn interpret(code: String) {
+  identifiers::init_identifiers();
   let mut lexer = Lexer::new();
   let mut parser = Parser::new();
 
@@ -63,7 +64,9 @@ fn main() {
   let a = identifiers::get_identifier(&String::from("a"));
   let b = identifiers::get_identifier(&String::from("b"));
   let c = identifiers::get_identifier(&String::from("c"));
+  let d = identifiers::get_identifier(&String::from("d"));
   dbg!(a);
   dbg!(b);
   dbg!(c);
+  dbg!(d);
 }
