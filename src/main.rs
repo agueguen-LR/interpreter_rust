@@ -4,11 +4,12 @@
 //! reading input files, lexing, parsing, and evaluating the code.
 
 mod ast;
-mod identifiers;
+mod context;
 mod lexer;
 mod parser;
 mod token;
 
+use crate::context::Context;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use std::env;
@@ -20,9 +21,9 @@ use std::fs;
 ///
 /// * `code` - The code string to be interpreted.
 fn interpret(code: String) {
-  identifiers::init_identifiers();
   let mut lexer = Lexer::new();
   let mut parser = Parser::new();
+  let mut context = Context::new();
 
   lexer.set_input(code);
   let tokens = match lexer.tokenize() {
@@ -32,18 +33,17 @@ fn interpret(code: String) {
   dbg!(&tokens);
 
   parser.set_tokens(tokens);
-  let trees = match parser.parse() {
+  let mut tree = match parser.parse() {
     Err(error) => panic!("Error during parsing: {error}"),
     Ok(tree) => tree,
   };
-  dbg!(&trees);
+  dbg!(&tree);
 
-  for mut tree in trees {
-    match tree.eval() {
-      Ok(_return_value) => {}
-      Err(error) => panic!("Error during runtime: {error}"),
-    };
-  }
+  match tree.eval(&mut context) {
+    Ok(_return_value) => {}
+    Err(error) => panic!("Error during runtime: {error}"),
+  };
+  dbg!(&context);
 }
 
 fn main() {
@@ -59,14 +59,4 @@ fn main() {
   print!("{file_content}");
 
   interpret(file_content);
-
-  // testing area
-  let a = identifiers::get_identifier(&String::from("a"));
-  let b = identifiers::get_identifier(&String::from("b"));
-  let c = identifiers::get_identifier(&String::from("c"));
-  let d = identifiers::get_identifier(&String::from("d"));
-  dbg!(a);
-  dbg!(b);
-  dbg!(c);
-  dbg!(d);
 }

@@ -4,7 +4,6 @@
 //! and converts them into an AST representation of the code.
 
 use crate::ast::ASTree;
-use crate::identifiers;
 use crate::token::Token;
 use crate::token::TokenType;
 
@@ -172,10 +171,6 @@ impl Parser {
   /// * `Result<ASTree, String>` - A result containing the ASTree for the assignment
   fn parse_assign(&mut self) -> Result<ASTree, String> {
     let identifier: Token = self.advance();
-    identifiers::set_identifier(
-      identifier.get_value().clone(),
-      crate::ast::RuntimeValue::NULL,
-    );
     let mut output: ASTree = ASTree::new(self.advance());
     output.append(ASTree::new(identifier));
     let value: ASTree = self.parse_expression()?;
@@ -331,7 +326,7 @@ impl Parser {
     match self.peek().get_type() {
       TokenType::IF => self.parse_if(),
       TokenType::WHILE => self.parse_while(),
-      TokenType::LBRACE => self.parse_block(format!("gen_block")),
+      TokenType::LBRACE => self.parse_block(format!("sub_block")),
       TokenType::IDENTIFIER => {
         if self.pos + 1 < self.tokens.len()
           && matches!(*self.tokens[self.pos + 1].get_type(), TokenType::ASSIGN)
@@ -351,10 +346,14 @@ impl Parser {
   ///
   /// * `Result<Vec<ASTree>, String>` - A result containing a vector of ASTrees or an error
   /// message.
-  pub fn parse(&mut self) -> Result<Vec<ASTree>, String> {
-    let mut output: Vec<ASTree> = Vec::new();
+  pub fn parse(&mut self) -> Result<ASTree, String> {
+    let mut output: ASTree = ASTree::new(Token::new(
+      TokenType::BLOCK,
+      String::from("global_block"),
+      0,
+    ));
     while !matches!(self.peek().get_type(), TokenType::EOF) {
-      output.push(self.parse_once()?);
+      output.append(self.parse_once()?);
     }
     Ok(output)
   }

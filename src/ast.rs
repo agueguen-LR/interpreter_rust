@@ -3,7 +3,7 @@
 //! This module defines the structure of the Abstract Syntax Tree (AST) used to represent
 //! parsed code and provides evaluation functionality for the AST nodes.
 
-use crate::identifiers;
+use crate::context::Context;
 use crate::token::Token;
 use crate::token::TokenType;
 
@@ -59,15 +59,15 @@ impl ASTree {
   ///
   /// * `Ok(RuntimeValue)` if evaluation is successful.
   /// * `Err(String)` if an error occurs during evaluation.
-  fn eval_binary_op(&mut self) -> Result<RuntimeValue, String> {
+  fn eval_binary_op(&mut self, ctx: &mut Context) -> Result<RuntimeValue, String> {
     if self.children.len() != 2 {
       return Err(format!(
         "Invalid amount of params passed to Binary Operation Evaluation, at position: {}",
         self.token.get_position()
       ));
     }
-    let param1: RuntimeValue = self.children[0].eval()?;
-    let param2: RuntimeValue = self.children[1].eval()?;
+    let param1: RuntimeValue = self.children[0].eval(ctx)?;
+    let param2: RuntimeValue = self.children[1].eval(ctx)?;
 
     match (&param1, &param2) {
       (RuntimeValue::INTEGER(val1), RuntimeValue::INTEGER(val2)) => {
@@ -131,11 +131,15 @@ impl ASTree {
 
   /// Evaluates the ASTree node and returns the resulting RuntimeValue.
   ///
+  /// # Arguments
+  ///
+  /// * `ctx` - The context for variable bindings during evaluation.
+  ///
   /// # Returns
   ///
   /// * `Ok(RuntimeValue)` if evaluation is successful.
   /// * `Err(String)` if an error occurs during evaluation.
-  pub fn eval(&mut self) -> Result<RuntimeValue, String> {
+  pub fn eval(&mut self, ctx: &mut Context) -> Result<RuntimeValue, String> {
     match self.token.get_type() {
       TokenType::NUMERIC => match self.token.get_value().parse::<i32>() {
         Ok(result) => return Ok(RuntimeValue::INTEGER(result)),
@@ -144,10 +148,10 @@ impl ASTree {
 
       TokenType::STRING => Ok(RuntimeValue::STRING(self.token.get_value().clone())),
 
-      TokenType::BINARYOP => self.eval_binary_op(),
+      TokenType::BINARYOP => self.eval_binary_op(ctx),
 
-      TokenType::IDENTIFIER => match identifiers::get_identifier(self.token.get_value()) {
-        Option::Some(val) => Ok(val),
+      TokenType::IDENTIFIER => match ctx.get_variable(self.token.get_value()) {
+        Option::Some(val) => Ok(val.clone()),
         Option::None => Err(format!(
           "Attempted to access unset identifier: '{}', at position: {}",
           self.token.get_value(),
@@ -162,7 +166,7 @@ impl ASTree {
             self.token.get_position()
           ));
         }
-        let condition_result: bool = match self.children[0].eval()? {
+        let condition_result: bool = match self.children[0].eval(ctx)? {
           RuntimeValue::BOOL(val) => val,
           other => {
             return Err(format!(
@@ -174,9 +178,9 @@ impl ASTree {
         };
 
         if condition_result {
-          self.children[1].eval()
+          self.children[1].eval(ctx)
         } else if self.children.len() == 3 {
-          self.children[2].eval()
+          self.children[2].eval(ctx)
         } else {
           Ok(RuntimeValue::NULL)
         }
@@ -189,7 +193,7 @@ impl ASTree {
             self.token.get_position()
           ));
         }
-        while match self.children[0].eval()? {
+        while match self.children[0].eval(ctx)? {
           RuntimeValue::BOOL(val) => val,
           other => {
             return Err(format!(
@@ -199,7 +203,7 @@ impl ASTree {
             ));
           }
         } {
-          self.children[1].eval()?;
+          self.children[1].eval(ctx)?;
         }
         Ok(RuntimeValue::NULL)
       }
@@ -211,18 +215,20 @@ impl ASTree {
             self.token.get_position()
           ));
         }
-        identifiers::set_identifier(
-          self.children[0].token.get_value().clone(),
-          self.children[1].eval()?,
-        );
+        let name = self.children[0].token.get_value().clone();
+        let value = self.children[1].eval(ctx)?;
+        ctx.set_variable(name, value.clone());
         Ok(RuntimeValue::BOOL(true))
       }
 
       TokenType::BLOCK => {
         let mut last_value: RuntimeValue = RuntimeValue::NULL;
+        ctx.push_scope();
         for child in &mut self.children {
-          last_value = child.eval()?;
+          last_value = child.eval(ctx)?;
         }
+        dbg!(&ctx);
+        ctx.pop_scope();
         Ok(last_value)
       }
 
