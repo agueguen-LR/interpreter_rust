@@ -240,6 +240,33 @@ impl Parser {
     Ok(output)
   }
 
+  /// Parses a while loop.
+  ///
+  /// # Returns
+  ///
+  /// * `Result<ASTree, String>` - A result containing the ASTree for the while loop
+  fn parse_while(&mut self) -> Result<ASTree, String> {
+    let mut output: ASTree = ASTree::new(self.advance());
+    if !matches!(self.advance().get_type(), TokenType::LPAREN) {
+      return Err(format!(
+        "Expected '(' after 'while' at position {}",
+        self.peek().get_position()
+      ));
+    }
+
+    output.append(self.parse_expression()?);
+
+    if !matches!(self.advance().get_type(), TokenType::RPAREN) {
+      return Err(format!(
+        "Expected ')' after while condition at position {}",
+        self.peek().get_position()
+      ));
+    }
+    output.append(self.parse_block(format!("while_block"))?);
+
+    Ok(output)
+  }
+
   /// Parses an expression using the Shunting Yard algorithm and constructs the AST.
   ///
   /// # Returns
@@ -303,6 +330,7 @@ impl Parser {
   fn parse_once(&mut self) -> Result<ASTree, String> {
     match self.peek().get_type() {
       TokenType::IF => self.parse_if(),
+      TokenType::WHILE => self.parse_while(),
       TokenType::LBRACE => self.parse_block(format!("gen_block")),
       TokenType::IDENTIFIER => {
         if self.pos + 1 < self.tokens.len()

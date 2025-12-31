@@ -182,6 +182,28 @@ impl ASTree {
         }
       }
 
+      TokenType::WHILE => {
+        if self.children.len() != 2 {
+          return Err(format!(
+            "Invalid children count passed to While ASTree, position: {}",
+            self.token.get_position()
+          ));
+        }
+        while match self.children[0].eval()? {
+          RuntimeValue::BOOL(val) => val,
+          other => {
+            return Err(format!(
+              "While condition didn't evaluate to Boolean value, is: {:?}, at position {}",
+              other,
+              self.token.get_position()
+            ));
+          }
+        } {
+          self.children[1].eval()?;
+        }
+        Ok(RuntimeValue::NULL)
+      }
+
       TokenType::ASSIGN => {
         if self.children.len() != 2 {
           return Err(format!(

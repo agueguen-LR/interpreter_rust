@@ -57,7 +57,7 @@ impl Lexer {
   /// Checks if a character is a valid symbol.
   fn is_valid_symbol(character: char) -> bool {
     match character {
-      '+' | '-' | '*' | '/' | '=' | '(' | ')' | '{' | '}' | '!' | '&' | '|' => true,
+      '+' | '-' | '*' | '/' | '=' | '!' | '&' | '|' => true,
       _ => false,
     }
   }
@@ -121,10 +121,6 @@ impl Lexer {
   fn emit_symbol_token(&mut self, tokens: &mut Vec<Token>) -> Result<(), String> {
     let token_type = match self.current_token_string.as_str() {
       "+" | "-" | "*" | "/" | "==" | "!=" | "&&" | "||" => TokenType::BINARYOP,
-      "(" => TokenType::LPAREN,
-      ")" => TokenType::RPAREN,
-      "{" => TokenType::LBRACE,
-      "}" => TokenType::RBRACE,
       "=" => TokenType::ASSIGN,
       _ => {
         return Err(format!(
@@ -164,17 +160,38 @@ impl Lexer {
           } else if Self::is_valid_symbol(character) {
             self.state = LexerState::SYMBOL;
             self.current_token_position = self.index;
-          } else if character == '"' {
-            self.index += 1;
-            self.state = LexerState::STRING;
-            self.current_token_position = self.index;
           } else if character.is_whitespace() {
             self.index += 1;
           } else {
-            return Err(format!(
-              "Invalid character '{}' at position {}",
-              character, self.index
-            ));
+            match character {
+              '"' => {
+                self.index += 1;
+                self.state = LexerState::STRING;
+                self.current_token_position = self.index;
+              }
+              '{' => {
+                tokens.push(Token::new(TokenType::LBRACE, "{".to_string(), self.index));
+                self.index += 1;
+              }
+              '}' => {
+                tokens.push(Token::new(TokenType::RBRACE, "}".to_string(), self.index));
+                self.index += 1;
+              }
+              '(' => {
+                tokens.push(Token::new(TokenType::LPAREN, "(".to_string(), self.index));
+                self.index += 1;
+              }
+              ')' => {
+                tokens.push(Token::new(TokenType::RPAREN, ")".to_string(), self.index));
+                self.index += 1;
+              }
+              _ => {
+                return Err(format!(
+                  "Invalid character '{}' at position {}",
+                  character, self.index
+                ));
+              }
+            }
           }
         }
 
