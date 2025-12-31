@@ -9,11 +9,10 @@ use crate::token::Token;
 use crate::token::TokenType;
 
 /// Enum representing the type of token in the Shunting Yard algorithm.
-#[derive(PartialEq)]
 enum ShuntingType {
   /// Represents an operator with its priority.
   OPERATOR(u8),
-  /// Represents a number or operand.
+  /// Represents an operand.
   OPERAND,
   /// Represents the end of an expression.
   END,
@@ -21,7 +20,9 @@ enum ShuntingType {
 
 /// Parser struct for parsing tokens into an Abstract Syntax Tree (AST).
 pub struct Parser {
+  /// The list of tokens to be parsed.
   tokens: Vec<Token>,
+  /// The current position in the token list.
   pos: usize,
 }
 
@@ -118,19 +119,21 @@ impl Parser {
     let mut operator_stack: Vec<Token> = Vec::new();
     // Start prev as operator, binary operators cannot start an expression
     let mut prev: ShuntingType = ShuntingType::OPERATOR(0);
-    while self.pos < self.tokens.len() {
+
+    // Loop can't be infinite, worst case will break when encountering a TokenType::EOF (ShuntingType::END)
+    loop {
       match Self::convert_to_shunting_type(self.peek()) {
         ShuntingType::OPERATOR(val) => {
-          if match prev {
-            ShuntingType::OPERATOR(_) => true,
-            _ => false,
-          } {
+          if matches!(prev, ShuntingType::OPERATOR(_)) {
             return Err(format!(
               "Invalid operator placement at position {}",
               self.peek().get_position()
             ));
           }
 
+          // auto-formatting makes this hard to read
+          // while there are operators on the stack with greater or equal precedence than the
+          // current operator, pop them to the output
           while operator_stack.len() > 0
             && val
               <= Self::match_operator_to_priority(
@@ -139,20 +142,23 @@ impl Parser {
           {
             output.push(operator_stack.pop().unwrap())
           }
+
           operator_stack.push(self.advance());
           prev = ShuntingType::OPERATOR(val);
         }
         ShuntingType::OPERAND => {
           // If the previous token was also an operand, this is a different expression
-          if prev == ShuntingType::OPERAND {
+          if matches!(prev, ShuntingType::OPERAND) {
             break;
+          } else {
+            output.push(self.advance());
+            prev = ShuntingType::OPERAND;
           }
-          output.push(self.advance());
-          prev = ShuntingType::OPERAND;
         }
         ShuntingType::END => break,
       }
     }
+
     while !operator_stack.is_empty() {
       output.push(operator_stack.pop().unwrap());
     }
@@ -177,9 +183,61 @@ impl Parser {
     Ok(output)
   }
 
+  /// Parses a block of code enclosed in braces.
+  ///
+  /// # Returns
+  ///
+  /// * `Result<ASTree, String>` - A result containing the ASTree for the block
+  fn parse_block(&mut self, name: String) -> Result<ASTree, String> {
+    let mut output: ASTree = ASTree::new(Token::new(
+      TokenType::BLOCK,
+      name,
+      *self.peek().get_position(),
+    ));
+    if !matches!(self.advance().get_type(), TokenType::LBRACE) {
+      return Err(format!(
+        "Expected '{{' at position {}, found {:?}",
+        self.peek().get_position(),
+        self.peek().get_type()
+      ));
+    }
+    while !matches!(self.peek().get_type(), TokenType::RBRACE) {
+      output.append(self.parse_once()?);
+    }
+    self.advance();
+    Ok(output)
+  }
+
   /// Parses an if statement.
+  ///
+  /// # Returns
+  ///
+  /// * `Result<ASTree, String>` - A result containing the ASTree for the if statement
   fn parse_if(&mut self) -> Result<ASTree, String> {
-    Err(format!("Not implemented"))
+    let mut output: ASTree = ASTree::new(self.advance());
+    if !matches!(self.advance().get_type(), TokenType::LPAREN) {
+      return Err(format!(
+        "Expected '(' after 'if' at position {}",
+        self.peek().get_position()
+      ));
+    }
+
+    output.append(self.parse_expression()?);
+
+    if !matches!(self.advance().get_type(), TokenType::RPAREN) {
+      return Err(format!(
+        "Expected ')' after if condition at position {}",
+        self.peek().get_position()
+      ));
+    }
+    output.append(self.parse_block(format!("if_block"))?);
+
+    if matches!(self.peek().get_type(), TokenType::ELSE) {
+      self.advance(); // consume 'else'
+      output.append(self.parse_block(format!("else_block"))?);
+    }
+
+    Ok(output)
   }
 
   /// Parses an expression using the Shunting Yard algorithm and constructs the AST.
@@ -188,7 +246,7 @@ impl Parser {
   ///
   /// * `Result<ASTree, String>` - A result containing the ASTree for the expression
   fn parse_expression(&mut self) -> Result<ASTree, String> {
-    let tokens: Vec<Token> = self.shunting_yard().expect("Error during Shunting yard");
+    let tokens: Vec<Token> = self.shunting_yard()?;
     let mut output: Vec<ASTree> = Vec::new();
 
     for token in tokens {
@@ -223,12 +281,40 @@ impl Parser {
       }
     }
 
+    if output.len() == 0 {
+      return Err(format!(
+        "Expected expression, found none at position {}",
+        self.peek().get_position()
+      ));
+    }
     if output.len() == 1 {
       return Ok(output.pop().unwrap());
     }
     Err(format!(
       "Expression parsing failed to resolve to singular ASTree"
     ))
+  }
+
+  /// Parses a single statement or expression based on the current token.
+  ///
+  /// # Returns
+  ///
+  /// * `Result<ASTree, String>` - A result containing the ASTree for the statement or expression
+  fn parse_once(&mut self) -> Result<ASTree, String> {
+    match self.peek().get_type() {
+      TokenType::IF => self.parse_if(),
+      TokenType::LBRACE => self.parse_block(format!("gen_block")),
+      TokenType::IDENTIFIER => {
+        if self.pos + 1 < self.tokens.len()
+          && matches!(*self.tokens[self.pos + 1].get_type(), TokenType::ASSIGN)
+        {
+          self.parse_assign()
+        } else {
+          self.parse_expression()
+        }
+      }
+      _ => self.parse_expression(),
+    }
   }
 
   /// Parses the tokens into a list of Abstract Syntax Trees (AST).
@@ -239,20 +325,8 @@ impl Parser {
   /// message.
   pub fn parse(&mut self) -> Result<Vec<ASTree>, String> {
     let mut output: Vec<ASTree> = Vec::new();
-    while self.pos < self.tokens.len() {
-      output.push(match self.peek().get_type() {
-        TokenType::IF => self.parse_if()?,
-        TokenType::IDENTIFIER => {
-          if self.pos + 1 < self.tokens.len()
-            && *self.tokens[self.pos + 1].get_type() == TokenType::ASSIGN
-          {
-            self.parse_assign()?
-          } else {
-            self.parse_expression()?
-          }
-        }
-        _ => self.parse_expression()?,
-      });
+    while !matches!(self.peek().get_type(), TokenType::EOF) {
+      output.push(self.parse_once()?);
     }
     Ok(output)
   }

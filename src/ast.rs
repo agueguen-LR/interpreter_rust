@@ -155,12 +155,53 @@ impl ASTree {
         )),
       },
 
+      TokenType::IF => {
+        if !(self.children.len() == 2 || self.children.len() == 3) {
+          return Err(format!(
+            "Invalid children count passed to If ASTree, position: {}",
+            self.token.get_position()
+          ));
+        }
+        let condition_result: bool = match self.children[0].eval()? {
+          RuntimeValue::BOOL(val) => val,
+          other => {
+            return Err(format!(
+              "If condition didn't evaluate to Boolean value, is: {:?}, at position {}",
+              other,
+              self.token.get_position()
+            ));
+          }
+        };
+
+        if condition_result {
+          self.children[1].eval()
+        } else if self.children.len() == 3 {
+          self.children[2].eval()
+        } else {
+          Ok(RuntimeValue::NULL)
+        }
+      }
+
       TokenType::ASSIGN => {
+        if self.children.len() != 2 {
+          return Err(format!(
+            "Invalid children count passed to Assign ASTree, position: {}",
+            self.token.get_position()
+          ));
+        }
         identifiers::set_identifier(
           self.children[0].token.get_value().clone(),
           self.children[1].eval()?,
         );
         Ok(RuntimeValue::BOOL(true))
+      }
+
+      TokenType::BLOCK => {
+        let mut last_value: RuntimeValue = RuntimeValue::NULL;
+        for child in &mut self.children {
+          last_value = child.eval()?;
+        }
+        Ok(last_value)
       }
 
       _ => {

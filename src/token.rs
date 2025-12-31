@@ -4,7 +4,7 @@
 //! and the `Token` struct for encapsulating token data, including its type, value, and position in the source code.
 
 /// Represents the different types of tokens that can be identified by the lexer.
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub enum TokenType {
   /// Numeric literal.
   NUMERIC,
@@ -24,6 +24,18 @@ pub enum TokenType {
   FOR,
   /// 'else' keyword.
   ELSE,
+  /// Left parenthesis '('.
+  LPAREN,
+  /// Right parenthesis ')'.
+  RPAREN,
+  /// Left brace '{'.
+  LBRACE,
+  /// Right brace '}'.
+  RBRACE,
+  /// A block of code.
+  BLOCK,
+  /// End of file.
+  EOF,
 }
 
 /// Represents a token with its type, value, and position in the source code.

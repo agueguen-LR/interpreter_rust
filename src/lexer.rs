@@ -121,6 +121,10 @@ impl Lexer {
   fn emit_symbol_token(&mut self, tokens: &mut Vec<Token>) -> Result<(), String> {
     let token_type = match self.current_token_string.as_str() {
       "+" | "-" | "*" | "/" | "==" | "!=" | "&&" | "||" => TokenType::BINARYOP,
+      "(" => TokenType::LPAREN,
+      ")" => TokenType::RPAREN,
+      "{" => TokenType::LBRACE,
+      "}" => TokenType::RBRACE,
       "=" => TokenType::ASSIGN,
       _ => {
         return Err(format!(
@@ -228,6 +232,9 @@ impl Lexer {
       }
     }
 
+    // DO NOT REMOVE THIS EOF TOKEN - PARSER EXPECTS IT TO BE PRESENT
+    // AT THE END OF THE TOKEN STREAM, INFINITY LOOPS WILL OCCUR OTHERWISE
+    tokens.push(Token::new(TokenType::EOF, String::new(), self.index));
     Ok(tokens)
   }
 }

@@ -1,0 +1,10 @@
+if (2 != 2) {
+	a = 5
+} else {
+	a = 10
+}
+if ("hello" == "hello") {
+	b = 20
+} else {
+	b = 15
+}
