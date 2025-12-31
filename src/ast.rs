@@ -69,14 +69,14 @@ impl ASTree {
     let param1: RuntimeValue = self.children[0].eval()?;
     let param2: RuntimeValue = self.children[1].eval()?;
 
-    match (param1, param2) {
+    match (&param1, &param2) {
       (RuntimeValue::INTEGER(val1), RuntimeValue::INTEGER(val2)) => {
         match self.token.get_value().as_str() {
           "+" => Ok(RuntimeValue::INTEGER(val1 + val2)),
           "-" => Ok(RuntimeValue::INTEGER(val1 - val2)),
           "*" => Ok(RuntimeValue::INTEGER(val1 * val2)),
           "/" => {
-            if val2 == 0 {
+            if *val2 == 0 {
               Err(format!(
                 "Division by zero error at position: {}",
                 self.token.get_position()
@@ -97,18 +97,34 @@ impl ASTree {
 
       (RuntimeValue::BOOL(val1), RuntimeValue::BOOL(val2)) => match self.token.get_value().as_str()
       {
-        "&&" => Ok(RuntimeValue::BOOL(val1 && val2)),
-        "||" => Ok(RuntimeValue::BOOL(val1 || val2)),
+        "&&" => Ok(RuntimeValue::BOOL(*val1 && *val2)),
+        "||" => Ok(RuntimeValue::BOOL(*val1 || *val2)),
         _ => Err(format!(
           "Unsupported binary operator: '{}' between booleans, at position: {}",
           self.token.get_value(),
           self.token.get_position()
         )),
       },
+
+      (RuntimeValue::STRING(val1), RuntimeValue::STRING(val2)) => {
+        match self.token.get_value().as_str() {
+          "+" => Ok(RuntimeValue::STRING(format!("{}{}", val1, val2))),
+          "==" => Ok(RuntimeValue::BOOL(val1 == val2)),
+          "!=" => Ok(RuntimeValue::BOOL(val1 != val2)),
+          _ => Err(format!(
+            "Unsupported binary operator: '{}' between strings, at position: {}",
+            self.token.get_value(),
+            self.token.get_position()
+          )),
+        }
+      }
+
       _ => Err(format!(
-        "Type mismatch for binary operation {} at position: {}",
+        "Type mismatch for binary operation {} at position: {}\n Left operand type: {:?}\n Right operand type: {:?}",
         self.token.get_value(),
-        self.token.get_position()
+        self.token.get_position(),
+        param1,
+        param2
       )),
     }
   }
@@ -125,6 +141,8 @@ impl ASTree {
         Ok(result) => return Ok(RuntimeValue::INTEGER(result)),
         Err(error) => return Err(error.to_string()),
       },
+
+      TokenType::STRING => Ok(RuntimeValue::STRING(self.token.get_value().clone())),
 
       TokenType::BINARYOP => self.eval_binary_op(),
 

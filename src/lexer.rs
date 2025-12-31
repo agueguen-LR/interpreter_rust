@@ -12,6 +12,8 @@ enum LexerState {
   NUMBER,
   /// Parsing an identifier.
   IDENTIFIER,
+  /// Parsing a string literal
+  STRING,
   /// Parsing a symbol
   SYMBOL,
   /// No current state.
@@ -97,6 +99,16 @@ impl Lexer {
     self.state = LexerState::NONE;
   }
 
+  fn emit_string_token(&mut self, tokens: &mut Vec<Token>) {
+    tokens.push(Token::new(
+      TokenType::STRING,
+      self.current_token_string.clone(),
+      self.current_token_position,
+    ));
+    self.current_token_string.clear();
+    self.state = LexerState::NONE;
+  }
+
   /// Emits a symbol token based on the current token string.
   ///
   /// # Arguments
@@ -148,6 +160,10 @@ impl Lexer {
           } else if Self::is_valid_symbol(character) {
             self.state = LexerState::SYMBOL;
             self.current_token_position = self.index;
+          } else if character == '"' {
+            self.index += 1;
+            self.state = LexerState::STRING;
+            self.current_token_position = self.index;
           } else if character.is_whitespace() {
             self.index += 1;
           } else {
@@ -176,6 +192,16 @@ impl Lexer {
           }
         }
 
+        LexerState::STRING => {
+          if character == '"' {
+            self.emit_string_token(&mut tokens);
+            self.index += 1;
+          } else {
+            self.current_token_string.push(character);
+            self.index += 1;
+          }
+        }
+
         LexerState::SYMBOL => {
           if !Self::is_valid_symbol(character) {
             self.emit_symbol_token(&mut tokens)?;
@@ -191,6 +217,12 @@ impl Lexer {
       match self.state {
         LexerState::NUMBER => self.emit_number_token(&mut tokens),
         LexerState::IDENTIFIER => self.emit_identifier_token(&mut tokens),
+        LexerState::STRING => {
+          return Err(format!(
+            "Unterminated string literal starting at position {}",
+            self.current_token_position
+          ));
+        }
         LexerState::SYMBOL => self.emit_symbol_token(&mut tokens)?,
         LexerState::NONE => {}
       }

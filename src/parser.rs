@@ -9,64 +9,14 @@ use crate::token::Token;
 use crate::token::TokenType;
 
 /// Enum representing the type of token in the Shunting Yard algorithm.
+#[derive(PartialEq)]
 enum ShuntingType {
-  ///  Represents the start state.
-  START,
   /// Represents an operator with its priority.
   OPERATOR(u8),
-  /// Represents a number or identifier.
-  NUMBER,
+  /// Represents a number or operand.
+  OPERAND,
   /// Represents the end of an expression.
   END,
-}
-
-/// Matches an operator string to its corresponding priority.
-///
-/// # Arguments
-///
-/// * `operator` - A string slice representing the operator.
-///
-/// # Returns
-///
-/// * `u8` - The priority of the operator.
-fn match_operator_to_priority(operator: &str) -> u8 {
-  match operator {
-    "==" => 1,
-    "!=" => 1,
-    "&&" => 1,
-    "||" => 1,
-    "+" => 2,
-    "-" => 2,
-    "/" => 3,
-    "*" => 3,
-    _ => panic!("Unsupported Operator in match_operator_to_priority"),
-  }
-}
-
-/// Converts a token to its corresponding ShuntingType.
-///
-/// # Arguments
-///
-/// * `token` - A reference to the token to be converted.
-///
-/// # Returns
-///
-/// * `ShuntingType` - The corresponding ShuntingType.
-fn convert_to_shunting_type(token: &Token) -> ShuntingType {
-  match token.get_type() {
-    TokenType::NUMERIC => ShuntingType::NUMBER,
-    TokenType::FOR => ShuntingType::END,
-    TokenType::WHILE => ShuntingType::END,
-    TokenType::ELSE => ShuntingType::END,
-    TokenType::IF => ShuntingType::END,
-    TokenType::IDENTIFIER => ShuntingType::NUMBER,
-    TokenType::BINARYOP => {
-      ShuntingType::OPERATOR(match_operator_to_priority(token.get_value().as_str()))
-    }
-    _ => {
-      panic!("Invalid TokenType passed to Shunting Yard algorithm during expression parsing")
-    }
-  }
 }
 
 /// Parser struct for parsing tokens into an Abstract Syntax Tree (AST).
@@ -113,6 +63,50 @@ impl Parser {
     self.tokens = tokens;
   }
 
+  /// Matches an operator string to its corresponding priority.
+  ///
+  /// # Arguments
+  ///
+  /// * `operator` - A string slice representing the operator.
+  ///
+  /// # Returns
+  ///
+  /// * `u8` - The priority of the operator.
+  fn match_operator_to_priority(operator: &str) -> u8 {
+    match operator {
+      "==" => 1,
+      "!=" => 1,
+      "&&" => 1,
+      "||" => 1,
+      "+" => 2,
+      "-" => 2,
+      "/" => 3,
+      "*" => 3,
+      _ => panic!("Unsupported Operator in match_operator_to_priority"),
+    }
+  }
+
+  /// Converts a token to its corresponding ShuntingType.
+  ///
+  /// # Arguments
+  ///
+  /// * `token` - A reference to the token to be converted.
+  ///
+  /// # Returns
+  ///
+  /// * `ShuntingType` - The corresponding ShuntingType.
+  fn convert_to_shunting_type(token: &Token) -> ShuntingType {
+    match token.get_type() {
+      TokenType::NUMERIC => ShuntingType::OPERAND,
+      TokenType::IDENTIFIER => ShuntingType::OPERAND,
+      TokenType::STRING => ShuntingType::OPERAND,
+      TokenType::BINARYOP => {
+        ShuntingType::OPERATOR(Self::match_operator_to_priority(token.get_value().as_str()))
+      }
+      _ => ShuntingType::END,
+    }
+  }
+
   /// Implements the Shunting Yard algorithm to convert infix expressions to postfix.
   ///
   /// # Returns
@@ -122,42 +116,41 @@ impl Parser {
   fn shunting_yard(&mut self) -> Result<Vec<Token>, String> {
     let mut output: Vec<Token> = Vec::new();
     let mut operator_stack: Vec<Token> = Vec::new();
-    let mut prev: ShuntingType = ShuntingType::START;
+    // Start prev as operator, binary operators cannot start an expression
+    let mut prev: ShuntingType = ShuntingType::OPERATOR(0);
     while self.pos < self.tokens.len() {
-      match convert_to_shunting_type(self.peek()) {
+      match Self::convert_to_shunting_type(self.peek()) {
         ShuntingType::OPERATOR(val) => {
           if match prev {
             ShuntingType::OPERATOR(_) => true,
             _ => false,
           } {
             return Err(format!(
-              "Syntax Error: Two operators in a row at position {}",
+              "Invalid operator placement at position {}",
               self.peek().get_position()
             ));
           }
 
           while operator_stack.len() > 0
             && val
-              <= match_operator_to_priority(operator_stack.last().unwrap().get_value().as_str())
+              <= Self::match_operator_to_priority(
+                operator_stack.last().unwrap().get_value().as_str(),
+              )
           {
             output.push(operator_stack.pop().unwrap())
           }
           operator_stack.push(self.advance());
           prev = ShuntingType::OPERATOR(val);
         }
-        ShuntingType::NUMBER => {
-          // If the previous token was also a number, we've arrived at a new expression
-          if match prev {
-            ShuntingType::NUMBER => true,
-            _ => false,
-          } {
+        ShuntingType::OPERAND => {
+          // If the previous token was also an operand, this is a different expression
+          if prev == ShuntingType::OPERAND {
             break;
           }
           output.push(self.advance());
-          prev = ShuntingType::NUMBER;
+          prev = ShuntingType::OPERAND;
         }
         ShuntingType::END => break,
-        ShuntingType::START => {}
       }
     }
     while !operator_stack.is_empty() {
@@ -204,6 +197,9 @@ impl Parser {
           output.push(ASTree::new(token));
         }
         TokenType::NUMERIC => {
+          output.push(ASTree::new(token));
+        }
+        TokenType::STRING => {
           output.push(ASTree::new(token));
         }
         TokenType::BINARYOP => {

@@ -1,4 +1,4 @@
 a = 10 - 5 + 6 / 3 * 10
 b = a * 4 - 2 + 8 / 2
 c = b / 2 - a
-c
+d = "hello" + " world!" == "hello world!"

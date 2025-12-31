@@ -10,6 +10,8 @@ pub enum TokenType {
   NUMERIC,
   /// Identifier (e.g., variable or function name).
   IDENTIFIER,
+  /// String literal.
+  STRING,
   /// Binary operator (e.g., +, -, *, /).
   BINARYOP,
   /// Assignment operator (e.g., =).
