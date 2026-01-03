@@ -30,20 +30,17 @@ fn interpret(code: String) {
     Err(error) => panic!("Error during lexing: {:?}", error),
     Ok(toks) => toks,
   };
-  dbg!(&tokens);
 
   parser.set_tokens(tokens);
-  let mut tree = match parser.parse() {
+  let tree = match parser.parse() {
     Err(error) => panic!("Error during parsing: {error}"),
     Ok(tree) => tree,
   };
-  dbg!(&tree);
 
   match tree.eval(&mut context) {
     Ok(_return_value) => {}
     Err(error) => panic!("Error during runtime: {error}"),
   };
-  dbg!(&context);
 }
 
 fn main() {

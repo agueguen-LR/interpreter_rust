@@ -1,0 +1,10 @@
+fn test(a, b ,c ){
+ fn test2(a, b){
+	a * b
+ }
+ d = test2(a, b)
+ d + c
+}
+
+a = test(2, 3, 4)
+b = test(5, 7, 1)

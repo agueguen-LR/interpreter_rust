@@ -4,7 +4,7 @@
 //! and the `Token` struct for encapsulating token data, including its type, value, and position in the source code.
 
 /// Represents the different types of tokens that can be identified by the lexer.
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum TokenType {
   /// Numeric literal.
   NUMERIC,
@@ -24,6 +24,8 @@ pub enum TokenType {
   FOR,
   /// 'else' keyword.
   ELSE,
+  /// 'fn' keyword for function declaration.
+  FN,
   /// Left parenthesis '('.
   LPAREN,
   /// Right parenthesis ')'.
@@ -32,8 +34,11 @@ pub enum TokenType {
   LBRACE,
   /// Right brace '}'.
   RBRACE,
-  /// A block of code.
-  BLOCK,
+  /// Comma ','.
+  COMMA,
+  /// A block of code. Boolean values indicates whether the block should automatically enter a new
+  /// scope when evaluated at runtime, true = new scope, false = no new scope.
+  BLOCK(bool),
   /// End of file.
   EOF,
 }

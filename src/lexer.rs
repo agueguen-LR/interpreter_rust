@@ -88,6 +88,7 @@ impl Lexer {
       "while" => TokenType::WHILE,
       "for" => TokenType::FOR,
       "else" => TokenType::ELSE,
+      "fn" => TokenType::FN,
       _ => TokenType::IDENTIFIER,
     };
     tokens.push(Token::new(
@@ -99,6 +100,11 @@ impl Lexer {
     self.state = LexerState::NONE;
   }
 
+  /// Emits a string token based on the current token string.
+  ///
+  /// # Arguments
+  ///
+  /// * `tokens` - A mutable reference to the vector of tokens.
   fn emit_string_token(&mut self, tokens: &mut Vec<Token>) {
     tokens.push(Token::new(
       TokenType::STRING,
@@ -183,6 +189,10 @@ impl Lexer {
               }
               ')' => {
                 tokens.push(Token::new(TokenType::RPAREN, ")".to_string(), self.index));
+                self.index += 1;
+              }
+              ',' => {
+                tokens.push(Token::new(TokenType::COMMA, ",".to_string(), self.index));
                 self.index += 1;
               }
               _ => {

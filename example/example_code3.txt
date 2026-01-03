@@ -3,6 +3,7 @@ if (2!= 2){
 } else {
 	a = 10
 }
+b = 0
 if ("hello" == "hello") {
 	b = 20
 } else {

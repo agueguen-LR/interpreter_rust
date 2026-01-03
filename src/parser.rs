@@ -54,6 +54,28 @@ impl Parser {
     token
   }
 
+  /// Consumes a token of the expected type.
+  /// Use instead of advance when you expect a specific token type.
+  ///
+  /// # Arguments
+  ///
+  /// * `token_type` - The expected type of the token to consume.
+  ///
+  /// # Returns
+  ///
+  /// * `Result<Token, String>` - A result containing the consumed token or an error message.
+  fn consume(&mut self, token_type: TokenType) -> Result<Token, String> {
+    if *self.peek().get_type() != token_type {
+      return Err(format!(
+        "Expected {:?} before position {}, found {:?}",
+        token_type,
+        self.peek().get_position(),
+        self.peek().get_type()
+      ));
+    }
+    Ok(self.advance())
+  }
+
   /// Sets the tokens to be parsed.
   ///
   /// # Arguments
@@ -170,32 +192,32 @@ impl Parser {
   ///
   /// * `Result<ASTree, String>` - A result containing the ASTree for the assignment
   fn parse_assign(&mut self) -> Result<ASTree, String> {
-    let identifier: Token = self.advance();
-    let mut output: ASTree = ASTree::new(self.advance());
-    output.append(ASTree::new(identifier));
-    let value: ASTree = self.parse_expression()?;
+    let identifier: ASTree = ASTree::new(self.consume(TokenType::IDENTIFIER)?);
+    let mut output: ASTree = ASTree::new(self.consume(TokenType::ASSIGN)?);
+    let value: ASTree = self.parse_once()?;
+
+    output.append(identifier);
     output.append(value);
     Ok(output)
   }
 
   /// Parses a block of code enclosed in braces.
   ///
+  /// # Arguments
+  /// * `name` - The name of the block.
+  /// * `scoped` - A boolean indicating whether the block should create a new scope
+  ///
   /// # Returns
   ///
   /// * `Result<ASTree, String>` - A result containing the ASTree for the block
-  fn parse_block(&mut self, name: String) -> Result<ASTree, String> {
+  fn parse_block(&mut self, name: String, scoped: bool) -> Result<ASTree, String> {
     let mut output: ASTree = ASTree::new(Token::new(
-      TokenType::BLOCK,
+      TokenType::BLOCK(scoped),
       name,
       *self.peek().get_position(),
     ));
-    if !matches!(self.advance().get_type(), TokenType::LBRACE) {
-      return Err(format!(
-        "Expected '{{' at position {}, found {:?}",
-        self.peek().get_position(),
-        self.peek().get_type()
-      ));
-    }
+    self.consume(TokenType::LBRACE)?;
+
     while !matches!(self.peek().get_type(), TokenType::RBRACE) {
       output.append(self.parse_once()?);
     }
@@ -209,27 +231,17 @@ impl Parser {
   ///
   /// * `Result<ASTree, String>` - A result containing the ASTree for the if statement
   fn parse_if(&mut self) -> Result<ASTree, String> {
-    let mut output: ASTree = ASTree::new(self.advance());
-    if !matches!(self.advance().get_type(), TokenType::LPAREN) {
-      return Err(format!(
-        "Expected '(' after 'if' at position {}",
-        self.peek().get_position()
-      ));
-    }
+    let mut output: ASTree = ASTree::new(self.consume(TokenType::IF)?);
 
+    self.consume(TokenType::LPAREN)?;
     output.append(self.parse_expression()?);
+    self.consume(TokenType::RPAREN)?;
 
-    if !matches!(self.advance().get_type(), TokenType::RPAREN) {
-      return Err(format!(
-        "Expected ')' after if condition at position {}",
-        self.peek().get_position()
-      ));
-    }
-    output.append(self.parse_block(format!("if_block"))?);
+    output.append(self.parse_block(format!("if_block"), true)?);
 
     if matches!(self.peek().get_type(), TokenType::ELSE) {
-      self.advance(); // consume 'else'
-      output.append(self.parse_block(format!("else_block"))?);
+      self.advance();
+      output.append(self.parse_block(format!("else_block"), true)?);
     }
 
     Ok(output)
@@ -241,23 +253,65 @@ impl Parser {
   ///
   /// * `Result<ASTree, String>` - A result containing the ASTree for the while loop
   fn parse_while(&mut self) -> Result<ASTree, String> {
-    let mut output: ASTree = ASTree::new(self.advance());
-    if !matches!(self.advance().get_type(), TokenType::LPAREN) {
-      return Err(format!(
-        "Expected '(' after 'while' at position {}",
-        self.peek().get_position()
-      ));
-    }
+    let mut output: ASTree = ASTree::new(self.consume(TokenType::WHILE)?);
 
+    self.consume(TokenType::LPAREN)?;
     output.append(self.parse_expression()?);
+    self.consume(TokenType::RPAREN)?;
 
-    if !matches!(self.advance().get_type(), TokenType::RPAREN) {
-      return Err(format!(
-        "Expected ')' after while condition at position {}",
-        self.peek().get_position()
-      ));
+    output.append(self.parse_block(format!("while_block"), true)?);
+
+    Ok(output)
+  }
+
+  /// Parses a function definition.
+  ///
+  /// # Returns
+  ///
+  /// * `Result<ASTree, String>` - A result containing the ASTree for the function definition
+  fn parse_fn_def(&mut self) -> Result<ASTree, String> {
+    let mut output: ASTree = ASTree::new(self.consume(TokenType::FN)?);
+    let name: ASTree = ASTree::new(self.consume(TokenType::IDENTIFIER)?);
+    output.append(name);
+
+    self.consume(TokenType::LPAREN)?;
+    if matches!(self.peek().get_type(), TokenType::IDENTIFIER) {
+      output.append(ASTree::new(self.consume(TokenType::IDENTIFIER)?));
     }
-    output.append(self.parse_block(format!("while_block"))?);
+    while matches!(self.peek().get_type(), TokenType::COMMA) {
+      self.consume(TokenType::COMMA)?;
+      output.append(ASTree::new(self.consume(TokenType::IDENTIFIER)?));
+    }
+    self.consume(TokenType::RPAREN)?;
+
+    // Function body block shouldn't auto-create a new scope. During evaluation, parameters will be
+    // need to be set within the function's scope, so ast::ASTree::eval_fn_call handles the scope
+    // creation instead of ast::ASTree::eval_block
+    output.append(self.parse_block("fn_body_block".to_string(), false)?);
+    Ok(output)
+  }
+
+  /// Parses a function call.
+  ///
+  /// # Returns
+  ///
+  /// * `Result<ASTree, String>` - A result containing the ASTree for the function call
+  fn parse_fn_call(&mut self) -> Result<ASTree, String> {
+    print!(
+      "Parsing function call at position {}\n",
+      self.peek().get_position()
+    );
+    let mut output: ASTree = ASTree::new(self.consume(TokenType::IDENTIFIER)?);
+
+    self.consume(TokenType::LPAREN)?;
+    if !matches!(self.peek().get_type(), TokenType::RPAREN) {
+      output.append(self.parse_expression()?);
+    }
+    while matches!(self.peek().get_type(), TokenType::COMMA) {
+      self.consume(TokenType::COMMA)?;
+      output.append(self.parse_expression()?);
+    }
+    self.consume(TokenType::RPAREN)?;
 
     Ok(output)
   }
@@ -269,6 +323,7 @@ impl Parser {
   /// * `Result<ASTree, String>` - A result containing the ASTree for the expression
   fn parse_expression(&mut self) -> Result<ASTree, String> {
     let tokens: Vec<Token> = self.shunting_yard()?;
+    dbg!(&tokens);
     let mut output: Vec<ASTree> = Vec::new();
 
     for token in tokens {
@@ -326,12 +381,15 @@ impl Parser {
     match self.peek().get_type() {
       TokenType::IF => self.parse_if(),
       TokenType::WHILE => self.parse_while(),
-      TokenType::LBRACE => self.parse_block(format!("sub_block")),
+      TokenType::FN => self.parse_fn_def(),
+      TokenType::LBRACE => self.parse_block(format!("sub_block"), true),
       TokenType::IDENTIFIER => {
-        if self.pos + 1 < self.tokens.len()
-          && matches!(*self.tokens[self.pos + 1].get_type(), TokenType::ASSIGN)
-        {
-          self.parse_assign()
+        if self.pos + 1 < self.tokens.len() {
+          match *self.tokens[self.pos + 1].get_type() {
+            TokenType::ASSIGN => self.parse_assign(),
+            TokenType::LPAREN => self.parse_fn_call(),
+            _ => self.parse_expression(),
+          }
         } else {
           self.parse_expression()
         }
@@ -348,7 +406,7 @@ impl Parser {
   /// message.
   pub fn parse(&mut self) -> Result<ASTree, String> {
     let mut output: ASTree = ASTree::new(Token::new(
-      TokenType::BLOCK,
+      TokenType::BLOCK(true),
       String::from("global_block"),
       0,
     ));
