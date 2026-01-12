@@ -323,7 +323,6 @@ impl Parser {
   /// * `Result<ASTree, String>` - A result containing the ASTree for the expression
   fn parse_expression(&mut self) -> Result<ASTree, String> {
     let tokens: Vec<Token> = self.shunting_yard()?;
-    dbg!(&tokens);
     let mut output: Vec<ASTree> = Vec::new();
 
     for token in tokens {

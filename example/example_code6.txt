@@ -1,0 +1,9 @@
+fn recur(a){
+  if (a == 10){
+    a
+  } else {
+    recur(a+1)
+  }
+}
+
+b = recur(1)

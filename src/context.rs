@@ -97,7 +97,6 @@ impl Context {
   ///
   /// * `Some(&ASTree)` if the function is found, or `None` if it is not found.
   pub fn get_function_body(&self, name: &String) -> Option<Rc<ASTree>> {
-    dbg!(&self.functions);
     for i in (0..self.functions.len()).rev() {
       if let Some(func_ast) = self.functions[i].get(name) {
         return Some(func_ast.body.clone());

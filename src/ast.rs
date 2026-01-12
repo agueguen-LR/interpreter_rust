@@ -271,7 +271,6 @@ impl ASTree {
     }
     // body.clone() is cheap due to Rc
     ctx.set_function(name.clone(), params, body.clone());
-    dbg!(ctx);
     Ok(RuntimeValue::NULL)
   }
 
