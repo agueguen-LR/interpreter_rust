@@ -14,6 +14,15 @@ This project is still in its early stages, I've improved but there's still much 
 - Usage of a Lexer, Parser, Abstract Syntax Trees (AST), and the Shunting Yard algorithm
 - Basic arithmetic operations
 - Variable assignment and usage
+- If-Else conditionals
+- While loops
+- Functions (working recursivity and local variables)
+
+## Notable missing features
+
+- Print
+- Arithmetic with functions
+- Assignment to exterior scopes
 
 ## Examples
 
@@ -23,6 +32,12 @@ To run an example, use the following command:
 ```bash
 cargo run example/<example-file>
 ```
+
+There is no way to print anything yet, so to see if the code is working, the interpreter automatically prints it's current context before exiting each scope.
+
+This means, after running the code, you'll see the final state of all global variables and global functions. You can also see all the created scopes and local variables/functions if you scroll up enough.
+
+Functions are stored as Abstract Syntax Trees, these can become quite illegible very quickly, so I recommend smart usage of scopes to see only what you want to see.
 
 ## Building and Running
 
