@@ -1,3 +1,5 @@
+[![CI](https://github.com/agueguen-LR/interpreter_rust/actions/workflows/rust.yml/badge.svg)](https://github.com/agueguen-LR/interpreter_rust/actions/workflows/rust.yml)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-success)](https://agueguen-lr.github.io/interpreter_rust/)
 # Interpreter Rust
 
 A simple interpreter coded in Rust.
