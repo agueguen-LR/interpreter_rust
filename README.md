@@ -21,8 +21,9 @@ This project is still in its early stages, I've improved but there's still much 
 ## Notable missing features
 
 - Print
-- Arithmetic with functions
 - Assignment to exterior scopes
+- Comments
+- Imports
 
 ## Examples
 
@@ -57,3 +58,9 @@ You can generate the documentation using Cargo:
 ```bash
 cargo doc --open
 ```
+
+## Grammar
+
+An Extended Backus–Naur form (EBNF) representation of the language grammar is available [here](./grammar.txt)
+
+All types of whitespace are ignored (spaces, tabs, newlines).

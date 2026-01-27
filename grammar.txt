@@ -1,0 +1,8 @@
+statement   -> expression | block | fn_def | assign | if | while
+block       -> '{' [statement]* '}'
+fn_def      -> 'fn' IDENTIFIER '(' [IDENTIFIER [',' IDENTIFIER]*] ')' block
+assign      -> IDENTIFIER '=' expression
+if          -> 'if' '(' expression ')' block ['else' block]
+while       -> 'while' '(' expression ')' block
+expression  -> (NUMERIC | IDENTIFIER | STRING | fn_call) [BINARY_OPERATOR expression]
+fn_call     -> IDENTIFIER '(' [expression [',' expression]*] ')'
