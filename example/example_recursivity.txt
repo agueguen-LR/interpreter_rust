@@ -6,4 +6,4 @@ fn recur(a){
   }
 }
 
-b = recur(1)
+b = 1 + recur(1) * 2 / recur(5-2)

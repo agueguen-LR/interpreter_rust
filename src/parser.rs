@@ -43,6 +43,16 @@ impl Parser {
     &self.tokens[self.pos]
   }
 
+  /// Peeks at the next token without advancing the position.
+  ///
+  /// # Returns
+  ///
+  /// * Option::None if there is no next token
+  /// * Option::Some(&Token) if there is a next token
+  fn peek_next(&self) -> Option<&Token> {
+    self.tokens.get(self.pos + 1)
+  }
+
   /// Advances the position and returns the current token.
   ///
   /// # Returns
@@ -130,15 +140,16 @@ impl Parser {
   }
 
   /// Implements the Shunting Yard algorithm to convert infix expressions to postfix.
+  /// Simultaneously builds the ASTree nodes for operands and operators.
   ///
   /// # Returns
   ///
-  /// * `Result<Vec<Token>, String>` - A result containing the postfix token vector or an error
+  /// * `Result<Vec<ASTree>, String>` - A result containing the postfix ASTree vector or an error
   /// message.
-  fn shunting_yard(&mut self) -> Result<Vec<Token>, String> {
-    let mut output: Vec<Token> = Vec::new();
+  fn shunting_yard(&mut self) -> Result<Vec<ASTree>, String> {
+    let mut output: Vec<ASTree> = Vec::new();
     let mut operator_stack: Vec<Token> = Vec::new();
-    // Start prev as operator, binary operators cannot start an expression
+    // Start prev as operator, binary operators cannot be start of an expression
     let mut prev: ShuntingType = ShuntingType::OPERATOR(0);
 
     // Loop can't be infinite, worst case will break when encountering a TokenType::EOF (ShuntingType::END)
@@ -161,7 +172,7 @@ impl Parser {
                 operator_stack.last().unwrap().get_value().as_str(),
               )
           {
-            output.push(operator_stack.pop().unwrap())
+            output.push(ASTree::new(operator_stack.pop().unwrap()))
           }
 
           operator_stack.push(self.advance());
@@ -171,19 +182,63 @@ impl Parser {
           // If the previous token was also an operand, this is a different expression
           if matches!(prev, ShuntingType::OPERAND) {
             break;
-          } else {
-            output.push(self.advance());
-            prev = ShuntingType::OPERAND;
           }
+
+          // If the next token is a left parenthesis, this operand is a function call
+          if self.peek_next().is_some()
+            && matches!(self.peek_next().unwrap().get_type(), TokenType::LPAREN)
+          {
+            output.push(self.parse_fn_call()?);
+          } else {
+            output.push(ASTree::new(self.advance()));
+          }
+          prev = ShuntingType::OPERAND;
         }
         ShuntingType::END => break,
       }
     }
 
     while !operator_stack.is_empty() {
-      output.push(operator_stack.pop().unwrap());
+      output.push(ASTree::new(operator_stack.pop().unwrap()));
     }
     Ok(output)
+  }
+
+  /// Parses an expression using the Shunting Yard algorithm and constructs the AST.
+  ///
+  /// # Returns
+  ///
+  /// * `Result<ASTree, String>` - A result containing the ASTree for the expression
+  fn parse_expression(&mut self) -> Result<ASTree, String> {
+    let postfix_expression: Vec<ASTree> = self.shunting_yard()?;
+    let mut output: Vec<ASTree> = Vec::new();
+
+    for tree in postfix_expression {
+      if matches!(tree.get_type(), TokenType::BINARYOP) {
+        let right: ASTree = output.pop().expect("Insufficient operands for operator");
+        let left: ASTree = output.pop().expect("Insufficient operands for operator");
+
+        let mut operator_node: ASTree = tree;
+        operator_node.append(left);
+        operator_node.append(right);
+        output.push(operator_node);
+      } else {
+        output.push(tree);
+      }
+    }
+
+    if output.len() == 0 {
+      return Err(format!(
+        "Expected expression, found none at position {}",
+        self.peek().get_position()
+      ));
+    }
+    if output.len() == 1 {
+      return Ok(output.pop().unwrap());
+    }
+    Err(format!(
+      "Expression parsing failed to resolve to singular ASTree"
+    ))
   }
 
   /// Parses an assignment statement.
@@ -194,7 +249,7 @@ impl Parser {
   fn parse_assign(&mut self) -> Result<ASTree, String> {
     let identifier: ASTree = ASTree::new(self.consume(TokenType::IDENTIFIER)?);
     let mut output: ASTree = ASTree::new(self.consume(TokenType::ASSIGN)?);
-    let value: ASTree = self.parse_once()?;
+    let value: ASTree = self.parse_statement()?;
 
     output.append(identifier);
     output.append(value);
@@ -219,7 +274,7 @@ impl Parser {
     self.consume(TokenType::LBRACE)?;
 
     while !matches!(self.peek().get_type(), TokenType::RBRACE) {
-      output.append(self.parse_once()?);
+      output.append(self.parse_statement()?);
     }
     self.advance();
     Ok(output)
@@ -297,10 +352,6 @@ impl Parser {
   ///
   /// * `Result<ASTree, String>` - A result containing the ASTree for the function call
   fn parse_fn_call(&mut self) -> Result<ASTree, String> {
-    print!(
-      "Parsing function call at position {}\n",
-      self.peek().get_position()
-    );
     let mut output: ASTree = ASTree::new(self.consume(TokenType::IDENTIFIER)?);
 
     self.consume(TokenType::LPAREN)?;
@@ -316,79 +367,23 @@ impl Parser {
     Ok(output)
   }
 
-  /// Parses an expression using the Shunting Yard algorithm and constructs the AST.
-  ///
-  /// # Returns
-  ///
-  /// * `Result<ASTree, String>` - A result containing the ASTree for the expression
-  fn parse_expression(&mut self) -> Result<ASTree, String> {
-    let tokens: Vec<Token> = self.shunting_yard()?;
-    let mut output: Vec<ASTree> = Vec::new();
-
-    for token in tokens {
-      match token.get_type() {
-        TokenType::IDENTIFIER => {
-          output.push(ASTree::new(token));
-        }
-        TokenType::NUMERIC => {
-          output.push(ASTree::new(token));
-        }
-        TokenType::STRING => {
-          output.push(ASTree::new(token));
-        }
-        TokenType::BINARYOP => {
-          let mut node: ASTree = ASTree::new(token);
-          let right: ASTree = output.pop().expect(
-            "Failed to pop right node from token stack during parsing for binary operation",
-          );
-          let left: ASTree = output.pop().expect(
-            "Failed to pop left token from token stack during parsing for binary operation",
-          );
-          node.append(left);
-          node.append(right);
-          output.push(node);
-        }
-        _ => {
-          return Err(format!(
-            "Parser encountered unsupported token type during parsing: {:?}",
-            token.get_type()
-          ));
-        }
-      }
-    }
-
-    if output.len() == 0 {
-      return Err(format!(
-        "Expected expression, found none at position {}",
-        self.peek().get_position()
-      ));
-    }
-    if output.len() == 1 {
-      return Ok(output.pop().unwrap());
-    }
-    Err(format!(
-      "Expression parsing failed to resolve to singular ASTree"
-    ))
-  }
-
-  /// Parses a single statement or expression based on the current token.
+  /// Parses a single statement based on the current token.
   ///
   /// # Returns
   ///
   /// * `Result<ASTree, String>` - A result containing the ASTree for the statement or expression
-  fn parse_once(&mut self) -> Result<ASTree, String> {
+  fn parse_statement(&mut self) -> Result<ASTree, String> {
     match self.peek().get_type() {
       TokenType::IF => self.parse_if(),
       TokenType::WHILE => self.parse_while(),
       TokenType::FN => self.parse_fn_def(),
+      TokenType::EOF => return Err("Attempted to parse EOF token".to_string()),
       TokenType::LBRACE => self.parse_block(format!("sub_block"), true),
       TokenType::IDENTIFIER => {
-        if self.pos + 1 < self.tokens.len() {
-          match *self.tokens[self.pos + 1].get_type() {
-            TokenType::ASSIGN => self.parse_assign(),
-            TokenType::LPAREN => self.parse_fn_call(),
-            _ => self.parse_expression(),
-          }
+        if self.peek_next().is_some()
+          && matches!(self.peek_next().unwrap().get_type(), TokenType::ASSIGN)
+        {
+          self.parse_assign()
         } else {
           self.parse_expression()
         }
@@ -397,11 +392,14 @@ impl Parser {
     }
   }
 
-  /// Parses the tokens into a list of Abstract Syntax Trees (AST).
+  /// Parses the tokens an Abstract Syntax Trees (AST).
+  /// This goes through all the tokens that have been set, and creates a single AST from them.
+  /// The many ASTs that would result from normal parsing are all children of a single root BLOCK token,
+  /// that can be considered the global scope of the program.
   ///
   /// # Returns
   ///
-  /// * `Result<Vec<ASTree>, String>` - A result containing a vector of ASTrees or an error
+  /// * `Result<ASTree>, String>` - A result containing the ASTree or an error
   /// message.
   pub fn parse(&mut self) -> Result<ASTree, String> {
     let mut output: ASTree = ASTree::new(Token::new(
@@ -410,7 +408,7 @@ impl Parser {
       0,
     ));
     while !matches!(self.peek().get_type(), TokenType::EOF) {
-      output.append(self.parse_once()?);
+      output.append(self.parse_statement()?);
     }
     Ok(output)
   }

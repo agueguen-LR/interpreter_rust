@@ -57,6 +57,15 @@ impl ASTree {
     self.children.push(Rc::new(child));
   }
 
+  /// Returns a reference to the token type of this ASTree node.
+  ///
+  /// # Returns
+  ///
+  /// * A reference to the TokenType of this node's token.
+  pub fn get_type(&self) -> &TokenType {
+    self.token.get_type()
+  }
+
   /// Evaluates a binary operation between two integer values.
   ///
   /// # Arguments
